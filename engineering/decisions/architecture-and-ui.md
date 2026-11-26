@@ -9,6 +9,23 @@ Decided November 26, 2026. This records why Overtone is built as a Tauri desktop
 3. **Symlinks are avoided.** Symbolic links let one file appear in multiple folders, but they break easily across external drives, FAT32/exFAT CDJ USBs, cloud backups, and DJ software path tables.
 4. **Portable single source of truth.** Overtone stores track records, quality verdicts, and overlapping vibe groupings in its own local SQLite database (`overtone-library`) and optionally mirrors vibe tags into standard embedded audio tags (`Comments` or `Grouping`, for example `#dub #warmup #hypnotic`) via `lofty`. That makes organization portable even without Overtone, and enables Smart Crates (Serato) and Intelligent Playlists (Rekordbox) as an additional fallback.
 
+## Library model
+
+Decided November 26, 2026.
+
+- **Index in place.** Overtone indexes the folders you point it at and never reorganizes them. An optional inbox step can move a new file into a library folder once, at ingest. After that its path is immutable, as principle 2 requires.
+- **One database shared by the app and CLI.** The library lives at `library.sqlite` in the app data directory for bundle identifier `com.jacksonferguson.overtone` (`~/Library/Application Support/com.jacksonferguson.overtone/` on macOS, matching Tauri's `app_data_dir()`). The CLI opens the same file and accepts `--library <path>` to use another one.
+- **Missing files.** Rescans mark tracks whose files disappeared as missing instead of deleting their records, so vibes and quality reports survive until you relink or remove them.
+- **Audio-only content hashes.** Duplicate detection hashes audio content, not whole files, so tag edits do not make a track look new. See [Vibe tags](vibe-tags.md).
+
+## Playback
+
+Decided November 26, 2026. Playback runs in the webview with an HTML `<audio>` element fed through Tauri's asset protocol, scoped at runtime to the library folders. WKWebView plays FLAC, ALAC, AIFF, WAV, MP3, and AAC natively, which avoids a native audio thread and position events over IPC. This replaces the roadmap's original `rodio` / `cpal` plan. Revisit it only if measured seek latency or format coverage falls short.
+
+## Protected paths
+
+Debug builds refuse to write under protected roots, so a development bug cannot touch a real DJ library: `~/Music`, `~/Library/Application Support/Serato`, `~/Library/Pioneer`, and `~/Documents/Native Instruments`. `OVERTONE_PROTECTED_ROOTS` (colon-separated) adds more roots. Every file write in the workspace goes through this check.
+
 ## Workspace layout
 
 Shared domain logic lives in Rust library crates under `crates/`, kept independent of both the desktop shell and the CLI:

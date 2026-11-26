@@ -32,6 +32,13 @@
 - Use existing libraries and established solutions where appropriate rather than unnecessarily reimplementing functionality, following the crate evaluations in [DJ software sync](engineering/decisions/dj-software-sync.md).
 - Escalate only genuinely blocking ambiguities or operations that risk irreversible damage to real user audio files or live DJ software databases.
 
+## Choosing dependencies
+
+- Before implementing a feature that could use an external crate or package, survey the candidates: maintenance, adoption, license (must be compatible with GPL-3.0-only), MSRV, open bugs, and the alternative of writing it yourself.
+- When more than one candidate is viable, compare them with spikes and benchmarks on the target machine (Apple Silicon, `aarch64-apple-darwin`) before choosing. Record the choice and the measurements in `engineering/decisions/`.
+- Prefer stability and quality over development speed. App bundle size matters less than quality and capability.
+- Prefer implementations that use SIMD, NEON, or other hardware acceleration when they measurably improve speed on Apple Silicon. Use `rayon` for parallel work when the batch is large enough to benefit.
+
 ## Shared code and tests
 
 - Keep library, audio analysis, tagging, and DJ sync behavior shared by the desktop app and CLI in the Rust crates under `crates/`. Keep Tauri commands and CLI presentation in their respective entry points. When changing a CLI command that supports `--json`, keep stdout limited to the JSON payload and suppress progress output in JSON mode.
@@ -45,6 +52,8 @@
 
 ## Audio files and DJ database safety
 
+- Never modify the real music library or real DJ software data during development: `~/Music`, `~/Library/Application Support/Serato`, `~/Library/Pioneer`, and `~/Documents/Native Instruments`. Debug builds enforce this through the protected-root check (see [protected paths](engineering/decisions/architecture-and-ui.md#protected-paths)).
+- For manual testing against real-world data, use the Git-ignored `local/` testing ground: `local/music/` holds APFS clones (`cp -c`) of a subset of the real library, and `local/serato/` holds copies of `_Serato_` and Serato's `Library` folder. Copied `.crate` files still reference the original track paths, so only read them; write new crates under `local/`. Recreate clones with `cp -c` rather than plain copies, because the disk has little free space.
 - Never auto-delete or silently overwrite user audio files based on automated quality verdicts. Spectral analysis flags suspicious tracks for human review by ear and spectrogram.
 - Treat accepted library file paths as immutable after ingest. Moving files breaks cue points, loops, and beatgrids in external DJ software unless those databases are rewritten in lockstep.
 - Before writing to any external DJ database or collection file (Serato `.crate`, Rekordbox `master.db`, Traktor `collection.nml`), check that the target DJ application is not running (for live databases such as `master.db` and `collection.nml`), save a timestamped backup first, and write via a temporary file plus atomic rename.

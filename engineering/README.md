@@ -7,6 +7,7 @@
 - [Architecture, data model, and UI stack](decisions/architecture-and-ui.md)
 - [Audio quality analysis and spectral forensics](decisions/audio-quality-analysis.md)
 - [DJ software sync: Serato, Rekordbox, and Traktor Rust ecosystems](decisions/dj-software-sync.md)
+- [Vibe tags in audio files and DJ software](decisions/vibe-tags.md)
 
 ## Plans
 

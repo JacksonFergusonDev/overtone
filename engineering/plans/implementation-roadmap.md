@@ -32,7 +32,7 @@ Goal: compile Overtone's vibe groupings out to Serato and Rekordbox safely witho
 
 Goal: build a fast, dark-first desktop UI for auditioning tracks, verifying flagged quality suspects, and assigning vibes at keyboard speed.
 
-- **Audio playback (`crates/audio` + `app/src-tauri`):** native audio playback (`rodio` / `cpal`) controlled from Tauri commands (play, pause, seek, volume, skip) with low-latency position events.
+- **Audio playback (`app/`):** webview `<audio>` playback through Tauri's runtime-scoped asset protocol (play, pause, seek, volume, skip). See [Playback](../decisions/architecture-and-ui.md#playback).
 - **Main library & inbox triage views (`app/src/`):**
   - Filterable track table with quality verdict badges, BPM, key, format, and multi-vibe tag pills.
   - Interactive clickable canvas waveform scrubber and keyboard shortcuts (`Space` play/pause, `J`/`K` next/prev track, arrow/number jump-to-section, quick-tag palette for assigning multiple vibes).
