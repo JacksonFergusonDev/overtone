@@ -1,0 +1,128 @@
+use serde::{Deserialize, Serialize};
+
+use crate::UnixMillis;
+
+/// Automated spectral quality verdict for a track.
+///
+/// Verdicts only flag tracks for human review by ear and spectrogram.
+/// Overtone never deletes or moves files based on a verdict.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QualityVerdict {
+    /// Not analyzed yet.
+    Unchecked,
+    /// Spectrum is consistent with the container's claimed quality.
+    Pass,
+    /// Something looks off, but it is often a legitimate master (vinyl rip, lo-fi, heavy low-pass).
+    Warning,
+    /// Strong evidence of a lossy transcode or fake hi-res upsample.
+    Suspect,
+}
+
+impl QualityVerdict {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Unchecked => "unchecked",
+            Self::Pass => "pass",
+            Self::Warning => "warning",
+            Self::Suspect => "suspect",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        Some(match value {
+            "unchecked" => Self::Unchecked,
+            "pass" => Self::Pass,
+            "warning" => Self::Warning,
+            "suspect" => Self::Suspect,
+            _ => return None,
+        })
+    }
+
+    /// Whether the verdict asks a human to listen and look.
+    pub fn needs_review(self) -> bool {
+        matches!(self, Self::Warning | Self::Suspect)
+    }
+}
+
+/// The DJ's own decision about a flagged track, kept separate from the
+/// automated verdict so re-running analysis never erases a human judgement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReviewStatus {
+    #[default]
+    Unreviewed,
+    /// Listened and looked: the flag was a false positive.
+    VerifiedOk,
+    /// Confirmed bad; the DJ wants to find a better copy. The file is left in place.
+    ReplaceWanted,
+}
+
+impl ReviewStatus {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Unreviewed => "unreviewed",
+            Self::VerifiedOk => "verified_ok",
+            Self::ReplaceWanted => "replace_wanted",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        Some(match value {
+            "unreviewed" => Self::Unreviewed,
+            "verified_ok" => Self::VerifiedOk,
+            "replace_wanted" => Self::ReplaceWanted,
+            _ => return None,
+        })
+    }
+}
+
+/// Spectral measurements and verdict recorded for one track.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct QualityReport {
+    pub verdict: QualityVerdict,
+    /// Estimated frequency where the spectrum's energy falls off, in Hz.
+    pub cutoff_hz: Option<f32>,
+    /// Confidence in the verdict, from 0.0 to 1.0.
+    pub confidence: Option<f32>,
+    /// Human-readable explanation of the verdict.
+    pub reason: Option<String>,
+    /// Version of the analyzer that produced this report, so reports from
+    /// older heuristics can be re-run.
+    pub analyzer_version: u32,
+    pub analyzed_at: UnixMillis,
+    pub review: ReviewStatus,
+    pub reviewed_at: Option<UnixMillis>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn verdict_strings_roundtrip() {
+        for verdict in [
+            QualityVerdict::Unchecked,
+            QualityVerdict::Pass,
+            QualityVerdict::Warning,
+            QualityVerdict::Suspect,
+        ] {
+            assert_eq!(QualityVerdict::parse(verdict.as_str()), Some(verdict));
+            let json = serde_json::to_string(&verdict).expect("serialize");
+            assert_eq!(json, format!("\"{}\"", verdict.as_str()));
+        }
+    }
+
+    #[test]
+    fn review_strings_roundtrip() {
+        for status in [
+            ReviewStatus::Unreviewed,
+            ReviewStatus::VerifiedOk,
+            ReviewStatus::ReplaceWanted,
+        ] {
+            assert_eq!(ReviewStatus::parse(status.as_str()), Some(status));
+            let json = serde_json::to_string(&status).expect("serialize");
+            assert_eq!(json, format!("\"{}\"", status.as_str()));
+        }
+    }
+}

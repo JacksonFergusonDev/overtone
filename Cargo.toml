@@ -58,11 +58,13 @@ panic = "abort"
 strip = true
 
 [workspace.dependencies]
-anyhow = "1"
 clap = { version = "4", features = ["derive"] }
-rusqlite = { version = "0.41", features = ["bundled", "backup", "fallible_uint"] }
+dirs = "7"
+reflink-copy = "0.1.33"
+rusqlite = { version = "0.43", features = ["bundled", "backup", "fallible_uint"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+tempfile = "3.27"
 thiserror = "2"
 overtone-audio = { path = "crates/audio" }
 overtone-library = { path = "crates/library" }
@@ -70,3 +72,5 @@ overtone-sync-serato = { path = "crates/sync-serato" }
 overtone-sync-rekordbox = { path = "crates/sync-rekordbox" }
 overtone-sync-traktor = { path = "crates/sync-traktor" }
 overtone-core = { path = "crates/core" }
+overtone-model = { path = "crates/model" }
+overtone-fs = { path = "crates/fs" }

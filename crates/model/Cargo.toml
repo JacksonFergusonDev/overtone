@@ -1,0 +1,17 @@
+[package]
+name = "overtone-model"
+description = "Shared domain types for Overtone: tracks, vibes, quality reports, and DJ apps"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

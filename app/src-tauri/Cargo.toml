@@ -20,13 +20,13 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 overtone-core.workspace = true
-overtone-library.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-dialog = "2"
 
 [dev-dependencies]
+tempfile.workspace = true
 tauri = { version = "2", features = ["protocol-asset", "test"] }
 
 [lints]

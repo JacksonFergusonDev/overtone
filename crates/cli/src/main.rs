@@ -1,8 +1,10 @@
 //! Command-line companion for Overtone.
 
-use anyhow::Result;
+use std::path::PathBuf;
+use std::process::ExitCode;
+
 use clap::{Parser, Subcommand};
-use overtone_library::Library;
+use overtone_core::CoreError;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -15,6 +17,10 @@ struct Cli {
     #[arg(long, global = true)]
     json: bool,
 
+    /// Library database to use instead of the one shared with the desktop app.
+    #[arg(long, global = true, value_name = "PATH", env = "OVERTONE_LIBRARY")]
+    library: Option<PathBuf>,
+
     #[command(subcommand)]
     command: Command,
 }
@@ -25,19 +31,43 @@ enum Command {
     Status,
 }
 
-fn main() -> Result<()> {
+fn main() -> ExitCode {
     let cli = Cli::parse();
+    match run(&cli) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            if cli.json {
+                let payload = serde_json::json!({
+                    "error": { "code": err.code(), "message": err.to_string() }
+                });
+                println!("{payload}");
+            } else {
+                eprintln!("error: {err}");
+            }
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn run(cli: &Cli) -> Result<(), CoreError> {
     match cli.command {
         Command::Status => {
-            let library = Library::open_in_memory()?;
-            let status = overtone_core::status(&library)?;
+            let (library, path) = overtone_core::open_library(cli.library.as_deref())?;
+            let status = overtone_core::status(&library, &path)?;
             if cli.json {
-                println!("{}", serde_json::to_string_pretty(&status)?);
-            } else {
                 println!(
-                    "Overtone {} (tracks: {}, vibes: {})",
-                    status.version, status.library.track_count, status.library.vibe_count
+                    "{}",
+                    serde_json::to_string_pretty(&status).expect("status serializes")
                 );
+            } else {
+                println!("Overtone {}", status.version);
+                println!("Library: {}", status.library_path);
+                println!(
+                    "Tracks: {} ({} missing)",
+                    status.library.track_count, status.library.missing_count
+                );
+                println!("Vibes: {}", status.library.vibe_count);
+                println!("Needs review: {}", status.library.needs_review_count);
             }
         }
     }
