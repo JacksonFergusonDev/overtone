@@ -1,0 +1,19 @@
+[package]
+name = "overtone-core"
+description = "Shared workflows combining Overtone's library, audio analysis, and DJ software sync"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+overtone-audio.workspace = true
+overtone-library.workspace = true
+overtone-sync-rekordbox.workspace = true
+overtone-sync-serato.workspace = true
+overtone-sync-traktor.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

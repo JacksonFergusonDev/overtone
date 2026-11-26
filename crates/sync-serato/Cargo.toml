@@ -1,0 +1,13 @@
+[package]
+name = "overtone-sync-serato"
+description = "Custom binary TLV reader and writer for Serato DJ .crate and subcrate files"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+
+[lints]
+workspace = true

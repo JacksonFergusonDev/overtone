@@ -1,0 +1,72 @@
+[workspace]
+resolver = "3"
+members = ["app/src-tauri", "crates/*"]
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+publish = false
+license = "GPL-3.0-only"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+# Nothing here is published, so API documentation sections and #[must_use]
+# annotations would be ceremony without readers.
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+must_use_candidate = "allow"
+return_self_not_must_use = "allow"
+# Style judgements with arbitrary thresholds.
+similar_names = "allow"
+struct_excessive_bools = "allow"
+too_many_lines = "allow"
+# Its fix, `assert_eq!(x, [] as [T; 0])`, reads worse than `assert!(x.is_empty())`.
+assert_is_empty = "allow"
+# Flags DJ software vocabulary (Rekordbox, Serato, ANLZ, GEOB), and clap doc
+# comments are --help text, where backticks would show.
+doc_markdown = "allow"
+# Counts, sample indices, and durations are far below 2^53.
+cast_precision_loss = "allow"
+# Saves an allocation on cold paths, at the cost of an ignored `write!` Result.
+format_collect = "allow"
+format_push_string = "allow"
+
+# Keep target/ small: line tables are enough for backtraces, deps need none.
+[profile.dev]
+debug = "line-tables-only"
+
+# Dependencies rarely rebuild, so optimising them costs one slower clean build.
+# Unoptimised, decoding audio and running FFTs is 10-30x slower.
+[profile.dev.package."*"]
+debug = false
+opt-level = 3
+
+# overtone-audio's own DSP and spectrogram loops are workspace code, so the
+# rule above skips them. Keep them optimised in dev builds.
+[profile.dev.package.overtone-audio]
+opt-level = 3
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true
+
+[workspace.dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+rusqlite = { version = "0.41", features = ["bundled", "backup", "fallible_uint"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+overtone-audio = { path = "crates/audio" }
+overtone-library = { path = "crates/library" }
+overtone-sync-serato = { path = "crates/sync-serato" }
+overtone-sync-rekordbox = { path = "crates/sync-rekordbox" }
+overtone-sync-traktor = { path = "crates/sync-traktor" }
+overtone-core = { path = "crates/core" }

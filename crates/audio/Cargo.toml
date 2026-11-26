@@ -1,0 +1,17 @@
+[package]
+name = "overtone-audio"
+description = "Audio decoding, FFT spectral quality forensics, waveform/spectrogram rendering, and tag I/O"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

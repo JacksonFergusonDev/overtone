@@ -1,0 +1,15 @@
+[package]
+name = "overtone-library"
+description = "SQLite library store for tracks, overlapping vibe tags, quality reports, and snapshots"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+rusqlite.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

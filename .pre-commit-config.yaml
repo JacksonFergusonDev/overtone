@@ -1,0 +1,146 @@
+default_install_hook_types:
+  - pre-commit
+  - commit-msg
+  - pre-push
+
+default_stages:
+  - pre-commit
+
+fail_fast: true
+
+repos:
+  # Generic hooks
+  - repo: builtin
+    hooks:
+      - id: check-added-large-files
+        args: ['--maxkb=2000']
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-symlinks
+      - id: check-executables-have-shebangs
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        exclude: ^app/pnpm-lock\.yaml$
+      - id: check-yaml
+        # pnpm 12 locks the package manager and project in separate documents.
+        files: ^app/pnpm-lock\.yaml$
+        args: [--allow-multiple-documents]
+      - id: check-json
+        # tsconfig files are JSON with comments.
+        exclude: (^|/)tsconfig.*\.json$
+      - id: check-toml
+
+  # Rust (Cargo workspace at the repository root). Rust is Homebrew's
+  # keg-only rustup, so each hook puts it on PATH.
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: bash -c 'PATH="/opt/homebrew/opt/rustup/bin:$PATH" cargo fmt --all'
+        language: system
+        files: \.rs$
+        pass_filenames: false
+
+  # Prettier uses the app's configuration and ignore file.
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier
+        entry: bash -c 'cd app && pnpm exec prettier --write --ignore-unknown "${@#app/}"' --
+        language: system
+        files: ^app/
+        exclude: ^app/src-tauri/
+        require_serial: true
+
+  # Validate dependency changes before running checks with those dependencies.
+  - repo: local
+    hooks:
+      - id: pnpm-lock-check
+        name: pnpm lockfile up to date
+        entry: pnpm --dir app install --frozen-lockfile --offline
+        language: system
+        files: ^app/(package\.json|pnpm-lock\.yaml)$
+        pass_filenames: false
+        stages: [pre-push]
+
+  # Project-wide checks use the same commands as CI.
+  - repo: local
+    hooks:
+      - id: app-build
+        name: app type check and build
+        entry: pnpm --dir app build
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: bash -c 'PATH="/opt/homebrew/opt/rustup/bin:$PATH" cargo clippy --locked --workspace --all-targets -- -D warnings'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      - id: cargo-test
+        name: cargo test
+        entry: bash -c 'PATH="/opt/homebrew/opt/rustup/bin:$PATH" cargo test --locked --workspace --no-fail-fast'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      - id: eslint
+        name: eslint
+        entry: pnpm --dir app lint
+        language: system
+        files: ^(app/|CHANGELOG\.md$)
+        exclude: ^app/src-tauri/
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: vitest
+        name: vitest
+        entry: pnpm --dir app test
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+  # Markdown and GitHub Actions
+  - repo: https://github.com/rvben/rumdl-pre-commit
+    rev: v0.3.2
+    hooks:
+      - id: rumdl-check
+        args: [--fix]
+      - id: rumdl-fmt
+
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.32.0
+    hooks:
+      - id: zizmor
+        args: [--offline, .github/]
+        pass_filenames: false
+        types: [file]
+        files: ^\.github/(workflows/.*\.ya?ml|actions/.*)$
+
+  # Check for accidental commits of secrets
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  # Commit message validation
+  - repo: https://github.com/Goldziher/gitfluff
+    rev: v0.11.0
+    hooks:
+      - id: gitfluff-lint
+        args: [--write]
+        stages: [commit-msg]
+
+  # GitHub Actions workflow validation
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint

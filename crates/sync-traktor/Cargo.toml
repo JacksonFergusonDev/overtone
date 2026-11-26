@@ -1,0 +1,13 @@
+[package]
+name = "overtone-sync-traktor"
+description = "Lossless streaming collection.nml patcher for Traktor Pro 3 and 4"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+
+[lints]
+workspace = true
