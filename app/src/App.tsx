@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getAppStatus, type AppStatus } from "./api";
+import { commands, errorMessage, type AppStatus } from "./api";
 import "./styles.css";
 
 export default function App() {
@@ -8,12 +8,13 @@ export default function App() {
 
   useEffect(() => {
     let active = true;
-    getAppStatus()
+    commands
+      .appStatus()
       .then((data) => {
         if (active) setStatus(data);
       })
       .catch((err: unknown) => {
-        if (active) setError(String(err));
+        if (active) setError(errorMessage(err));
       });
     return () => {
       active = false;
@@ -31,7 +32,9 @@ export default function App() {
       </header>
       <section className="panel" aria-live="polite">
         {error ? (
-          <p className="error">Failed to load status: {error}</p>
+          <p className="error" role="alert">
+            Couldn't open your library: {error}
+          </p>
         ) : status ? (
           <dl className="stats">
             <div>
@@ -46,9 +49,13 @@ export default function App() {
               <dt>Vibes</dt>
               <dd>{status.library.vibe_count}</dd>
             </div>
+            <div>
+              <dt>Needs review</dt>
+              <dd>{status.library.needs_review_count}</dd>
+            </div>
           </dl>
         ) : (
-          <p className="muted">Connecting to Overtone library…</p>
+          <p className="muted">Opening your library…</p>
         )}
       </section>
     </main>

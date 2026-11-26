@@ -16,12 +16,14 @@ pub use track::{
 pub use vibe::{MAX_VIBE_PATH_CHARS, VIBE_SEPARATOR, Vibe, VibeId, VibePath, VibePathError};
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 /// Milliseconds since the Unix epoch, UTC.
 pub type UnixMillis = i64;
 
 /// DJ applications Overtone syncs with.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, TS, Deserialize)]
+#[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum DjApp {
     Serato,

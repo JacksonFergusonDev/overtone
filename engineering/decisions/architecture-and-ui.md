@@ -22,6 +22,12 @@ Decided November 26, 2026.
 
 Decided November 26, 2026. Playback runs in the webview with an HTML `<audio>` element fed through Tauri's asset protocol, scoped at runtime to the library folders. WKWebView plays FLAC, ALAC, AIFF, WAV, MP3, and AAC natively, which avoids a native audio thread and position events over IPC. This replaces the roadmap's original `rodio` / `cpal` plan. Revisit it only if measured seek latency or format coverage falls short.
 
+## TypeScript bindings
+
+Decided November 26, 2026. Rust types that cross the IPC boundary derive `ts_rs::TS` with `#[ts(export)]`, and `cargo test` writes them to `app/src/bindings/` (configured in `.cargo/config.toml`). `TS_RS_LARGE_INT = "number"` maps `i64` and `u64` to `number`, which is exact for SQLite row ids, byte sizes, and millisecond timestamps below 2^53. Commands get thin hand-written wrappers in `app/src/api.ts`. A pre-push hook and CI fail when committed bindings differ from what `cargo test` generates.
+
+`tauri-specta` was spiked and rejected for now: its newest release is `2.0.0-rc.29`, the TypeScript exporter refuses `i64`/`u64` unless every field is annotated or a still-changing runtime BigInt layer is enabled, and full command discovery needs an unreleased Tauri version. Revisit when it ships a stable 2.0.
+
 ## Protected paths
 
 Debug builds refuse to write under protected roots, so a development bug cannot touch a real DJ library: `~/Music`, `~/Library/Application Support/Serato`, `~/Library/Pioneer`, and `~/Documents/Native Instruments`. `OVERTONE_PROTECTED_ROOTS` (colon-separated) adds more roots. Every file write in the workspace goes through this check.

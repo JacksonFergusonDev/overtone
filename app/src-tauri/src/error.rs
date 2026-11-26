@@ -1,9 +1,11 @@
 use overtone_core::CoreError;
 use serde::Serialize;
+use ts_rs::TS;
 
 /// Error returned by every Tauri command, serialized as
 /// `{ "code": "...", "message": "..." }` for the frontend.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export)]
 pub struct CommandError {
     /// Stable category the UI can branch on (see `CoreError::code`).
     pub code: String,

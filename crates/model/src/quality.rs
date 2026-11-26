@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::UnixMillis;
 
@@ -6,7 +7,8 @@ use crate::UnixMillis;
 ///
 /// Verdicts only flag tracks for human review by ear and spectrogram.
 /// Overtone never deletes or moves files based on a verdict.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, TS, Deserialize)]
+#[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum QualityVerdict {
     /// Not analyzed yet.
@@ -47,7 +49,8 @@ impl QualityVerdict {
 
 /// The DJ's own decision about a flagged track, kept separate from the
 /// automated verdict so re-running analysis never erases a human judgement.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, TS, Deserialize)]
+#[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum ReviewStatus {
     #[default]
@@ -78,7 +81,8 @@ impl ReviewStatus {
 }
 
 /// Spectral measurements and verdict recorded for one track.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, TS, Deserialize)]
+#[ts(export)]
 pub struct QualityReport {
     pub verdict: QualityVerdict,
     /// Estimated frequency where the spectrum's energy falls off, in Hz.

@@ -16,8 +16,10 @@ overtone-sync-serato.workspace = true
 overtone-sync-traktor.workspace = true
 serde.workspace = true
 thiserror.workspace = true
+ts-rs.workspace = true
 
 [dev-dependencies]
+overtone-testkit.workspace = true
 tempfile.workspace = true
 
 [lints]

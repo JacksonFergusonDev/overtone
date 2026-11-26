@@ -10,6 +10,7 @@ use overtone_sync_serato::SeratoError;
 use overtone_sync_traktor::TraktorError;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use ts_rs::TS;
 
 pub use overtone_fs as fs;
 pub use overtone_library as library;
@@ -74,7 +75,8 @@ pub fn open_library(explicit: Option<&Path>) -> Result<(Library, PathBuf), CoreE
 }
 
 /// Diagnostic snapshot returned by both the CLI and desktop shell.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS, Deserialize)]
+#[ts(export)]
 pub struct AppStatus {
     pub version: String,
     pub library_path: String,
@@ -104,6 +106,25 @@ mod tests {
         let report = status(&library, &opened).expect("status");
         assert_eq!(report.library.track_count, 0);
         assert_eq!(report.library_path, path.display().to_string());
+    }
+
+    #[test]
+    fn status_counts_tracks_in_a_temp_library() {
+        let mut temp = overtone_testkit::TempLibrary::new();
+        let path = temp.add_fixture(
+            "tone",
+            &overtone_testkit::Signal::cd(16_000.0),
+            overtone_testkit::Fixture::Wav { bits: 16 },
+        );
+        temp.library
+            .upsert_scanned(&library::ScannedTrack {
+                path: path.display().to_string(),
+                file_size: std::fs::metadata(&path).expect("stat").len(),
+                ..library::ScannedTrack::default()
+            })
+            .expect("insert");
+        let report = status(&temp.library, &temp.library_path).expect("status");
+        assert_eq!(report.library.track_count, 1);
     }
 
     #[test]

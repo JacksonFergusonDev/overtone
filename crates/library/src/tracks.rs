@@ -5,11 +5,13 @@ use overtone_model::{
 };
 use rusqlite::{OptionalExtension, Row, params};
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::{Library, LibraryError, now_millis, quality};
 
 /// What a scan read from one file, ready to store.
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, TS, Deserialize)]
+#[ts(export)]
 pub struct ScannedTrack {
     pub path: String,
     pub file_size: u64,
@@ -20,7 +22,8 @@ pub struct ScannedTrack {
 }
 
 /// What `upsert_scanned` did.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS, Deserialize)]
+#[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum UpsertOutcome {
     Inserted,

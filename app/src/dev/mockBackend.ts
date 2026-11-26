@@ -3,10 +3,13 @@ import type { AppStatus } from "../api";
 
 const MOCK_STATUS: AppStatus = {
   version: "0.1.0-mock",
+  library_path: "/mock/library.sqlite",
   library: {
     schema_version: 1,
     track_count: 0,
+    missing_count: 0,
     vibe_count: 0,
+    needs_review_count: 0,
   },
 };
 
@@ -15,6 +18,6 @@ export function installMockBackend(): void {
     if (cmd === "app_status") {
       return MOCK_STATUS;
     }
-    return null;
+    throw { code: "internal", message: `mock backend has no command ${cmd}` };
   });
 }

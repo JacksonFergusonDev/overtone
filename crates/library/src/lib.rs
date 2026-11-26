@@ -16,6 +16,7 @@ use std::path::Path;
 
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 pub use error::LibraryError;
 pub use migrations::SCHEMA_VERSION;
@@ -27,7 +28,8 @@ pub use tracks::{ScannedTrack, UpsertOutcome};
 pub const LIBRARY_FILE_NAME: &str = "library.sqlite";
 
 /// High-level summary of a library database.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS, Deserialize)]
+#[ts(export)]
 pub struct LibrarySummary {
     pub schema_version: i64,
     pub track_count: u64,

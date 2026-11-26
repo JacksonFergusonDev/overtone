@@ -1,0 +1,16 @@
+[package]
+name = "overtone-testkit"
+description = "Test helpers for Overtone: synthetic audio fixtures and temporary libraries"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+flacenc.workspace = true
+hound.workspace = true
+overtone-library.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true

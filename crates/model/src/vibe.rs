@@ -2,11 +2,13 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use ts_rs::TS;
 
 use crate::UnixMillis;
 
 /// Stable database identifier for a vibe.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, TS, Deserialize)]
+#[ts(export)]
 #[serde(transparent)]
 pub struct VibeId(pub i64);
 
@@ -35,8 +37,10 @@ pub enum VibePathError {
 /// would break the places vibes are written: `%%` (Serato's subcrate
 /// separator in filenames), `#` (hashtag boundaries in Comment tags),
 /// `:` and `\` (path separators), or control characters.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, TS, Deserialize)]
+#[ts(export)]
 #[serde(try_from = "String", into = "String")]
+#[ts(type = "string")]
 pub struct VibePath {
     segments: Vec<String>,
 }
@@ -156,7 +160,8 @@ impl std::str::FromStr for VibePath {
 }
 
 /// A vibe grouping. Tracks can belong to any number of vibes.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS, Deserialize)]
+#[ts(export)]
 pub struct Vibe {
     pub id: VibeId,
     pub path: VibePath,

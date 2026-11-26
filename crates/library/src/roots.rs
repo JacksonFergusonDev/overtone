@@ -1,11 +1,13 @@
 use overtone_model::UnixMillis;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::{Library, LibraryError, now_millis};
 
 /// A folder the library indexes in place.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS, Deserialize)]
+#[ts(export)]
 pub struct LibraryRoot {
     pub id: i64,
     pub path: String,

@@ -1,14 +1,17 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::{QualityReport, UnixMillis, VibeId};
 
 /// Stable database identifier for a track.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, TS, Deserialize)]
+#[ts(export)]
 #[serde(transparent)]
 pub struct TrackId(pub i64);
 
 /// Audio codec family of a file, as decoded rather than as named.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, TS, Deserialize)]
+#[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum AudioFormat {
     Flac,
@@ -80,7 +83,8 @@ pub fn is_audio_extension(extension: &str) -> bool {
 }
 
 /// Technical properties read from the file's stream headers.
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, TS, Deserialize)]
+#[ts(export)]
 pub struct AudioProperties {
     pub format: Option<AudioFormat>,
     pub sample_rate_hz: Option<u32>,
@@ -91,7 +95,8 @@ pub struct AudioProperties {
 }
 
 /// Embedded metadata read from the file's tags.
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, TS, Deserialize)]
+#[ts(export)]
 pub struct TrackTags {
     pub title: Option<String>,
     pub artist: Option<String>,
@@ -109,7 +114,8 @@ pub struct TrackTags {
 }
 
 /// A track in the library: one immutable file on disk.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, TS, Deserialize)]
+#[ts(export)]
 pub struct Track {
     pub id: TrackId,
     /// Absolute path. Immutable after ingest; see `engineering/decisions/architecture-and-ui.md`.
