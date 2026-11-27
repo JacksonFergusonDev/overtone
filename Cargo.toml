@@ -74,7 +74,7 @@ png = "0.18.1"
 quick-xml = "0.42"
 realfft = "3.5.1"
 reflink-copy = "0.1.33"
-rusqlite = { version = "0.43", features = ["bundled", "backup", "fallible_uint"] }
+rusqlite = { version = "0.43", features = ["bundled-sqlcipher-vendored-openssl", "backup", "fallible_uint"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sysinfo = { version = "0.40", default-features = false, features = ["system"] }
