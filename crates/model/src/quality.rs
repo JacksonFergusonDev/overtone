@@ -19,6 +19,9 @@ pub enum QualityVerdict {
     Warning,
     /// Strong evidence of a lossy transcode or fake hi-res upsample.
     Suspect,
+    /// Analysis ran but the audio carries too little high-frequency content
+    /// to judge (common for dub, ambient, and older masters). Not flagged.
+    Inconclusive,
 }
 
 impl QualityVerdict {
@@ -28,6 +31,7 @@ impl QualityVerdict {
             Self::Pass => "pass",
             Self::Warning => "warning",
             Self::Suspect => "suspect",
+            Self::Inconclusive => "inconclusive",
         }
     }
 
@@ -37,6 +41,7 @@ impl QualityVerdict {
             "pass" => Self::Pass,
             "warning" => Self::Warning,
             "suspect" => Self::Suspect,
+            "inconclusive" => Self::Inconclusive,
             _ => return None,
         })
     }
@@ -110,6 +115,7 @@ mod tests {
             QualityVerdict::Pass,
             QualityVerdict::Warning,
             QualityVerdict::Suspect,
+            QualityVerdict::Inconclusive,
         ] {
             assert_eq!(QualityVerdict::parse(verdict.as_str()), Some(verdict));
             let json = serde_json::to_string(&verdict).expect("serialize");

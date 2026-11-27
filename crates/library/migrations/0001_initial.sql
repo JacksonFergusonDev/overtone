@@ -64,7 +64,8 @@ CREATE INDEX track_vibes_vibe ON track_vibes (vibe_id);
 -- automated verdict so re-analysis never erases a human decision.
 CREATE TABLE quality_reports (
     track_id INTEGER PRIMARY KEY REFERENCES tracks (id) ON DELETE CASCADE,
-    verdict TEXT NOT NULL CHECK (verdict IN ('unchecked', 'pass', 'warning', 'suspect')),
+    verdict TEXT NOT NULL
+        CHECK (verdict IN ('unchecked', 'pass', 'warning', 'suspect', 'inconclusive')),
     cutoff_hz REAL,
     confidence REAL,
     reason TEXT,

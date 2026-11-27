@@ -6,4 +6,4 @@
  * Verdicts only flag tracks for human review by ear and spectrogram.
  * Overtone never deletes or moves files based on a verdict.
  */
-export type QualityVerdict = "unchecked" | "pass" | "warning" | "suspect";
+export type QualityVerdict = "unchecked" | "pass" | "warning" | "suspect" | "inconclusive";

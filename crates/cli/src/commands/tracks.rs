@@ -162,6 +162,7 @@ fn quality_label(track: &Track) -> String {
         QualityVerdict::Pass => "pass",
         QualityVerdict::Warning => "warning",
         QualityVerdict::Suspect => "suspect",
+        QualityVerdict::Inconclusive => "inconclusive",
     };
     match q.review {
         ReviewStatus::Unreviewed => verdict.to_string(),
