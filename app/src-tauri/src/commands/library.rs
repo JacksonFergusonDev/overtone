@@ -8,7 +8,7 @@ use overtone_core::model::Track;
 use overtone_core::scan::{self, ScanOptions, ScanProgress, ScanReport};
 use overtone_core::{AppStatus, CoreError};
 use tauri::ipc::Channel;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Manager, Runtime, State};
 
 use super::{Throttle, join_error};
 use crate::error::CommandError;
@@ -88,8 +88,8 @@ pub fn list_roots(state: State<'_, AppState>) -> Result<Vec<LibraryRoot>, Comman
 
 /// Adds a library folder and lets the webview read audio inside it.
 #[tauri::command]
-pub fn add_root(
-    app: AppHandle,
+pub fn add_root<R: Runtime>(
+    app: AppHandle<R>,
     state: State<'_, AppState>,
     path: String,
 ) -> Result<LibraryRoot, CommandError> {
@@ -124,14 +124,14 @@ pub async fn scan_library(
 }
 
 /// Allows the webview to read files under `dir` through the asset protocol.
-pub fn allow_asset_directory(app: &AppHandle, dir: &Path) {
+pub fn allow_asset_directory<R: Runtime>(app: &AppHandle<R>, dir: &Path) {
     if let Err(err) = app.asset_protocol_scope().allow_directory(dir, true) {
         eprintln!("couldn't allow {} in the asset scope: {err}", dir.display());
     }
 }
 
 /// Allows every library folder and the spectrogram cache; called at startup.
-pub fn allow_startup_directories(app: &AppHandle, state: &AppState) {
+pub fn allow_startup_directories<R: Runtime>(app: &AppHandle<R>, state: &AppState) {
     if let Err(err) = std::fs::create_dir_all(state.spectrogram_dir()) {
         eprintln!("couldn't create the spectrogram cache: {err}");
     }

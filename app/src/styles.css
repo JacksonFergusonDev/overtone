@@ -396,6 +396,15 @@ kbd {
   font-weight: 600;
 }
 
+.btn-primary:disabled,
+.btn-danger:disabled {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--muted);
+  font-weight: 500;
+  opacity: 1;
+}
+
 .btn-danger {
   background: var(--danger-soft);
   border-color: var(--danger);
@@ -725,7 +734,14 @@ kbd {
 .pills {
   display: flex;
   gap: 4px;
+  min-width: 0;
   overflow: hidden;
+  /* Fade pills that run past the cell instead of cutting them off. */
+  mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent);
+}
+
+.pill {
+  flex-shrink: 0;
 }
 
 .pill {

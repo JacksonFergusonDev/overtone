@@ -26,6 +26,9 @@ const APP_NAMES: Record<AppKey, string> = {
   traktor: "Traktor",
 };
 
+/** Apps Overtone syncs to and can detect. Traktor joins once its sync lands. */
+const MONITORED_APPS: AppKey[] = ["serato", "rekordbox"];
+
 /** Shared frame for one sync destination. Add a card per target app. */
 export function SyncTargetCard({
   title,
@@ -76,7 +79,7 @@ function RunningIndicators({
 }) {
   return (
     <div className="running" role="group" aria-label="DJ apps">
-      {(Object.keys(APP_NAMES) as AppKey[]).map((app) => {
+      {MONITORED_APPS.map((app) => {
         const state =
           running === null ? "unknown" : running[app] ? "running" : "closed";
         return (
