@@ -11,6 +11,8 @@ Overtone is a local-first library hub built with Rust and Tauri. It automates th
 - **Cross-platform DJ sync:** exports your groupings to Serato `.crate` subcrates, Rekordbox (`rekordbox.xml` and guarded `master.db`), and Traktor Pro 3/4 (`collection.nml`) with automatic backups before every write.
 - **Listening and triage workflow:** audition tracks in a keyboard-fast desktop app with clickable waveforms, an inspectable spectrogram view for flagged tracks, and one-keystroke vibe tagging.
 
+To learn the app, see [Using the desktop app](docs/desktop-app.md). [DJ software support](docs/dj-software-support.md) lists what syncs to each DJ app today.
+
 Licensed under [GPL-3.0-only](LICENSE).
 
 ## Development

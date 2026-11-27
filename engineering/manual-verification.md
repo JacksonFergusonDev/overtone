@@ -83,6 +83,8 @@ Use a throwaway Rekordbox library (a spare macOS user account, or back up Rekord
 
 Run the desktop app against a copy of your library under `local/` (see AGENTS.md), not real data.
 
+- [ ] Start the app with a scratch data folder so it doesn't use your default library: `OVERTONE_DATA_DIR=/tmp/overtone-app pnpm --dir app tauri dev`. Add `local/music` in Settings, scan, and audit; the library fills in without a restart.
+- [ ] Playback works for each format WKWebView has to handle: MP3, AAC and ALAC `.m4a`, WAV, AIFF, and FLAC (FLAC in WKWebView is the least certain). Seeking to the middle of a long FLAC or WAV starts within a moment.
 - [ ] After adding a folder in the app, audio from that folder plays without restarting (the asset-protocol scope widens in `add_root`).
 - [ ] Audio outside library folders can't be loaded by the webview.
 - [ ] A removed folder's audio stays playable until the app restarts (Tauri can't narrow the scope again). Confirm that's acceptable.
@@ -101,4 +103,5 @@ Check at the default window size (1280x860) and the minimum (840x560). See [Usin
 - [ ] The spectrogram's frequency labels line up with the image, and the dashed cutoff line sits where the energy falls off, in both linear and log scales.
 - [ ] In Needs review, `O` and `R` advance to the next flagged track and playback follows. Judge whether that flow is fast enough for a real triage session.
 - [ ] Dragging selected rows onto a vibe in the sidebar tags them.
+- [ ] The Sync view's Serato Apply, Rekordbox Export, and Comment tag Apply each match the CLI's result for the same library (run them on the throwaway setups described in the sections above).
 - [ ] Focus rings are visible on every control, and text contrast is comfortable in a dark room.
