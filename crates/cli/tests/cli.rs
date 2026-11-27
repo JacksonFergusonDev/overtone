@@ -160,3 +160,69 @@ fn scan_indexes_fixtures_and_rescans_incrementally() {
     assert!(ok);
     assert_eq!(tracks.as_array().expect("tracks").len(), 2);
 }
+
+#[test]
+fn audit_review_spectrogram_and_comment_mirroring() {
+    let dir = TempDir::new().expect("tempdir");
+    let music = dir.path().join("music");
+    std::fs::create_dir_all(&music).expect("mkdir");
+    let full = overtone_testkit::Signal::noise(22_050.0);
+    let walled = overtone_testkit::Signal::noise(16_000.0);
+    let fixture = overtone_testkit::Fixture::Flac { bits: 16 };
+    let good = music.join("good.flac");
+    let bad = music.join("bad.flac");
+    overtone_testkit::write_fixture(&good, &full, fixture).expect("good");
+    overtone_testkit::write_fixture(&bad, &walled, fixture).expect("bad");
+    let music_arg = music.to_str().expect("utf8");
+
+    let (ok, _) = run_json(&dir, &["scan", music_arg]);
+    assert!(ok);
+    let (ok, report) = run_json(&dir, &["audit"]);
+    assert!(ok, "{report}");
+    assert_eq!(report["analyzed"], 2);
+    assert_eq!(report["flagged"].as_array().expect("flagged").len(), 1);
+
+    let bad_arg = bad.to_str().expect("utf8");
+    let (ok, flagged) = run_json(&dir, &["ls", "--needs-review"]);
+    assert!(ok, "{flagged}");
+    assert_eq!(flagged.as_array().expect("tracks").len(), 1);
+    let (ok, reviewed) = run_json(&dir, &["review", bad_arg, "ok"]);
+    assert!(ok, "{reviewed}");
+    let (ok, flagged) = run_json(&dir, &["ls", "--needs-review"]);
+    assert!(ok);
+    assert_eq!(flagged, serde_json::json!([]));
+
+    let png = dir.path().join("bad.png");
+    let (ok, spec) = run_json(
+        &dir,
+        &["spectrogram", bad_arg, "--out", png.to_str().expect("utf8")],
+    );
+    assert!(ok, "{spec}");
+    assert!(png.exists());
+
+    let good_arg = good.to_str().expect("utf8");
+    let (ok, _) = run_json(&dir, &["vibe", "add", "Dubs/Deep", good_arg]);
+    assert!(ok);
+    let before = std::fs::read(&good).expect("read");
+    let (ok, preview) = run_json(&dir, &["tag", "mirror"]);
+    assert!(ok, "{preview}");
+    assert_eq!(preview[0]["after"], "#dubs/deep");
+    assert_eq!(
+        std::fs::read(&good).expect("read"),
+        before,
+        "preview writes nothing"
+    );
+
+    let (ok, written) = run_json(&dir, &["tag", "mirror", "--write"]);
+    assert!(ok, "{written}");
+    assert_eq!(written["written"].as_array().expect("written").len(), 1);
+    let (ok, rescan) = run_json(&dir, &["scan"]);
+    assert!(ok);
+    assert_eq!(rescan["updated"], 0, "written files don't look changed");
+
+    let (ok, restored) = run_json(&dir, &["tag", "restore", "--write"]);
+    assert!(ok, "{restored}");
+    let (ok, show) = run_json(&dir, &["show", good_arg]);
+    assert!(ok);
+    assert_eq!(show["track"]["tags"]["comment"], serde_json::Value::Null);
+}

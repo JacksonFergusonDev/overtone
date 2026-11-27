@@ -2753,6 +2753,7 @@ dependencies = [
  "clap",
  "comfy-table",
  "indicatif",
+ "overtone-audio",
  "overtone-core",
  "overtone-sync-serato",
  "overtone-testkit",

@@ -12,7 +12,7 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand};
 use overtone_core::CoreError;
 
-use crate::commands::{roots, scan, sync, tracks, vibes};
+use crate::commands::{audit, roots, scan, sync, tag, tracks, vibes};
 use crate::output::Output;
 
 #[derive(Debug, Parser)]
@@ -43,6 +43,13 @@ enum Command {
     Roots(roots::RootsCommand),
     /// Index audio files in your folders. Files are only read, never changed.
     Scan(scan::ScanArgs),
+    /// Check audio quality: flags likely fake lossless, upscaled, and fake
+    /// hi-res files for you to review. Never deletes or moves anything.
+    Audit(audit::AuditArgs),
+    /// Record your verdict on a flagged track after listening.
+    Review(audit::ReviewArgs),
+    /// Render a track's spectrogram to a PNG for visual inspection.
+    Spectrogram(audit::SpectrogramArgs),
     /// List tracks.
     Ls(tracks::LsArgs),
     /// Show one track in detail.
@@ -50,6 +57,9 @@ enum Command {
     /// Create, rename, and assign vibes.
     #[command(subcommand)]
     Vibe(vibes::VibeCommand),
+    /// Mirror vibes into Comment tags in your audio files (opt-in).
+    #[command(subcommand)]
+    Tag(tag::TagCommand),
     /// Sync vibes to DJ software. Close the DJ app first.
     #[command(subcommand)]
     Sync(sync::SyncCommand),
@@ -86,6 +96,10 @@ fn run(cli: &Cli, out: &Output) -> Result<(), CoreError> {
         }
         Command::Roots(command) => roots::run(&library, command, out),
         Command::Scan(args) => scan::run(&mut library, args, out),
+        Command::Audit(args) => audit::audit(&mut library, args, out),
+        Command::Review(args) => audit::review(&library, args, out),
+        Command::Spectrogram(args) => audit::spectrogram(&library, args, out),
+        Command::Tag(command) => tag::run(&mut library, command, out),
         Command::Ls(args) => tracks::ls(&library, args, out),
         Command::Show(args) => tracks::show(&library, args, out),
         Command::Vibe(command) => vibes::run(&mut library, command, out),

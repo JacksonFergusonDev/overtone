@@ -1,6 +1,8 @@
+pub mod audit;
 pub mod roots;
 pub mod scan;
 pub mod sync;
+pub mod tag;
 pub mod tracks;
 pub mod vibes;
 
@@ -13,14 +15,22 @@ pub fn resolve_track(library: &Library, selector: &str) -> Result<Track, CoreErr
     if let Ok(id) = selector.parse::<i64>() {
         return Ok(library.track(TrackId(id))?);
     }
+    // Scans store canonical paths (symlinks resolved, e.g. /var is
+    // /private/var on macOS), so try the path as typed, then canonicalized.
     let absolute = std::path::absolute(selector)
         .map_or_else(|_| selector.to_string(), |p| p.display().to_string());
-    library.track_by_path(&absolute)?.ok_or_else(|| {
-        CoreError::Library(LibraryError::NotFoundByName {
-            kind: "track at path",
-            name: absolute.clone(),
-        })
-    })
+    if let Some(track) = library.track_by_path(&absolute)? {
+        return Ok(track);
+    }
+    if let Ok(canonical) = std::fs::canonicalize(selector)
+        && let Some(track) = library.track_by_path(&canonical.display().to_string())?
+    {
+        return Ok(track);
+    }
+    Err(CoreError::Library(LibraryError::NotFoundByName {
+        kind: "track at path",
+        name: absolute,
+    }))
 }
 
 pub fn parse_vibe(input: &str) -> Result<VibePath, CoreError> {
