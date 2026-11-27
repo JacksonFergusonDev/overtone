@@ -3,13 +3,15 @@
 //! - [`read_metadata`]: fast scan read with lofty's concrete file types
 //!   (no artwork, best-attempt parsing).
 //! - [`vibes`]: pure hashtag logic for mirroring vibes into Comment.
-//! - [`write_comment`]: the only tag write Overtone performs, guarded by
-//!   [`raw`]'s independent byte-level walkers. See
+//! - [`write_comment`]: the only tag write Overtone performs. It rebuilds
+//!   only the Comment frame or field byte by byte and is guarded by
+//!   [`raw`]'s independent walkers. See
 //!   `engineering/decisions/tag-writing.md`.
 
 mod meta;
 pub mod raw;
 mod read;
+mod splice;
 mod verify;
 pub mod vibes;
 mod write;
@@ -47,9 +49,9 @@ pub enum WriteOutcome {
 /// Details of a verified write, for diagnostics and spikes.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct WriteReport {
-    /// Text frames lofty re-encoded: different bytes, identical decoded
-    /// text. Binary frames (GEOB, PRIV, APIC) are never in this list; a
-    /// change to them aborts the write.
+    /// Text frames whose bytes changed while their decoded text stayed the
+    /// same. The splicer copies frames verbatim, so this is normally empty;
+    /// a change to a binary frame (GEOB, PRIV, APIC) aborts the write.
     pub reencoded_frames: Vec<String>,
     /// Whether frames, chunks, or FLAC blocks changed order.
     pub reordered: bool,
@@ -72,7 +74,7 @@ pub fn read_metadata(path: &Path) -> Result<FileMetadata, AudioError> {
 
 /// Checks whether `write_comment` would accept `path`, without writing:
 /// supported format, a structure the walkers fully account for, and tags
-/// that parse strictly. Returns the reason it would refuse.
+/// the scanner can read. Returns the reason it would refuse.
 pub fn check_writable(path: &Path) -> Result<(), AudioError> {
     write::prepare(path).map(|_| ())
 }

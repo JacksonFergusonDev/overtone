@@ -1,12 +1,13 @@
 # Writing Comment tags safely
 
-Decided November 26, 2026. This records how Overtone reads tags and writes the Comment field that mirrors vibes (see [Vibe tags in audio files and DJ software](vibe-tags.md)), and what a spike on 1,151 real Serato-analysed files showed.
+Decided November 26, 2026; the writer was replaced by the byte-level splicer on November 27, 2026. This records how Overtone reads tags and writes the Comment field that mirrors vibes (see [Vibe tags in audio files and DJ software](vibe-tags.md)), and what a spike on 1,151 real Serato-analysed files showed.
 
 ## Decision
 
 - **Read** every format with `lofty` pinned to `=0.25.5`, through its concrete file types (`MpegFile`, `FlacFile`, `WavFile`, `AiffFile`, `Mp4File`), never the generic `Tag`. Scans skip artwork and parse in best-attempt mode, falling back to relaxed parsing, then to the MP3's ID3v2 tag alone, then to stream properties only, so one broken frame never hides a track.
 - **Write** only the Comment, only for MP3, WAV, AIFF (ID3v2) and FLAC (Vorbis `COMMENT`), only through `overtone_audio::tags::write_comment`. M4A returns `UnsupportedFormat("writing M4A tags is not supported yet")` until a spike proves lofty's `ilst` rewrite safe.
-- **Verify independently.** lofty edits a copy made by `overtone_fs::edit_via_copy`. Before the copy may replace the original, Overtone's own byte-level walkers (`tags::raw`, no lofty code) must account for every byte, and any mismatch discards the copy and names the failed check. The original is never opened for writing.
+- **Write by splicing, not through a tag library.** `tags::splice` copies the original into a copy made by `overtone_fs::edit_via_copy`, rebuilding only the target `COMM` frame (ID3v2) or `COMMENT` field (FLAC) and copying every other frame, chunk, block, and audio byte verbatim. lofty is no longer involved in writes, so frames it would drop, merge, or normalise survive unchanged.
+- **Verify independently.** Before the copy may replace the original, Overtone's own byte-level walkers (`tags::raw`) must account for every byte, and any mismatch discards the copy and names the failed check. The original is never opened for writing.
 
 ## Which frame is "Comment"
 
@@ -19,21 +20,22 @@ Decided November 26, 2026. This records how Overtone reads tags and writes the C
 ## The write pipeline
 
 1. Refuse paths under `ProtectedRoots`, then detect the container from file content.
-2. Walk the original with the independent walker. Refuse anything it can't fully account for: ID3v2.2, unsynchronisation, extended headers, experimental flags, footers, compressed, encrypted, grouped or length-prefixed frames, non-synchsafe v2.4 sizes, empty frames, data inside padding, an ID3v2 tag that doesn't start at byte 0, chunk sizes that don't add up to the RIFF/FORM size, more than one ID3 chunk, an ID3v2 tag in front of a FLAC stream, or more than one `VORBIS_COMMENT` block.
-3. Refuse tags lofty 0.25.5 is known to alter: ID3v2.4-only frames (`TSOP`, `TSOA`, `TSOT` and others) inside an ID3v2.3 tag, which lofty drops on a v2.3 write; exact duplicate frames, which lofty merges; and several Comment frames with the same language and description.
-4. Parse strictly with lofty (artwork on, implicit ID3v2.3 conversions off, `max_junk_bytes` 1024 on read and write). For MP3 only the ID3v2 tag region is parsed strictly, because trailing ID3v1 and APE tags are never written and are compared byte for byte instead. Cross-check that lofty and the walker agree on the current Comment. If the Comment already has the requested value, return `Unchanged` without touching the file.
-5. On the copy, edit the concrete `Id3v2Tag` or `VorbisComments` and save with `use_id3v23` set from the original version, `lossy_text_encoding(false)`, and the original `ID3` / `id3` chunk case. FLAC saves through `FlacFile::save_to`, because `VorbisComments::save_to` drops `PICTURE` blocks. Two lofty normalisations are undone first: `APIC` keeps its original MIME string (lofty rewrites `image/jpg` as `image/jpeg`), and `WXXX` frames with a Latin-1 description are written as Latin-1 (lofty otherwise encodes the URL in UTF-16, which the spec forbids).
-6. Copy extended attributes (Finder tags in `com.apple.metadata:_kMDItemUserTags`, Spotlight comments) and the creation date onto the copy.
-7. Verify the copy, and discard it on any failure:
+2. Walk the original with the independent walker. Refuse anything it can't fully account for: ID3v2.2, unsynchronisation, extended headers, experimental flags, footers, compressed, encrypted, grouped or length-prefixed frames, non-synchsafe v2.4 sizes, empty frames, data inside padding, an ID3v2 tag that doesn't start at byte 0, chunk sizes that don't add up to the RIFF/FORM size, more than one ID3 chunk, an ID3v2 tag in front of a FLAC stream, more than one `VORBIS_COMMENT` block, or several Comment frames with the same language and description.
+3. Read the tags the way the scanner does (lofty, tolerant; for MP3 only the leading ID3v2 tag) and cross-check that it and the walker agree on the current Comment. A file lofty can't read even tolerantly is refused, since Overtone couldn't show what it wrote. If the Comment already has the requested value, return `Unchanged` without touching the file.
+4. Splice the copy:
+   - **ID3v2 (MP3, and the `ID3` chunk of WAV and AIFF):** re-serialise the tag from the walker's frames, each written from its stored ID, flags, and body. The target `COMM` keeps its position, language, encoding (Latin-1 switches to UTF-16 only when the text needs it), and stored description bytes. A new Comment is appended as `eng`, empty description. The tag keeps its exact size when its padding absorbs the change, so nothing after it moves; otherwise it grows with 2 KiB of fresh padding. In WAV and AIFF the chunk and RIFF/FORM sizes are updated to match. A file without a tag gets an ID3v2.4 tag (MP3) or an `ID3` chunk appended to the RIFF/FORM chunk.
+   - **FLAC:** rebuild the `VORBIS_COMMENT` body from the walker's raw entries with only the first `COMMENT` value replaced (its key spelling kept), removed, or appended. The first `PADDING` block grows or shrinks so the metadata keeps its size and the audio doesn't move; if it can't, it is reset to 2 KiB. Block order is unchanged.
+5. Copy extended attributes (Finder tags in `com.apple.metadata:_kMDItemUserTags`, Spotlight comments) and the creation date onto the copy.
+6. Verify the copy, and discard it on any failure:
    - **Structure:** the copy walks cleanly.
    - **ID3 version:** unchanged.
-   - **Frames:** every non-Comment frame survives with the same ID, flags and count, in the same order within each ID. Binary frames (`GEOB`, `PRIV`, `APIC`, `UFID`, `POPM`, anything not text) are byte-identical. Text frames may be re-encoded but must decode to identical strings.
+   - **Frames:** every non-Comment frame survives with the same ID, flags and count, in the same order within each ID. Binary frames (`GEOB`, `PRIV`, `APIC`, `UFID`, `POPM`, anything not text) are byte-identical. Text frames must decode to identical strings (with the splicer they are byte-identical too).
    - **Comment value:** exactly one target frame holding the requested text, or none for a removal.
    - **Chunks (WAV/AIFF):** every chunk except the ID3 chunk and JUNK padding directly after it is byte-identical and in order; bytes after the RIFF/FORM chunk are unchanged.
    - **FLAC blocks:** `STREAMINFO` identical; `APPLICATION`, `SEEKTABLE`, `CUESHEET` and `PICTURE` blocks byte-identical as a multiset; the vendor string and every Vorbis field other than `COMMENT` identical bytes in the same order.
    - **Audio payload:** byte-identical, streamed in 1 MiB blocks: MPEG frames between the ID3v2 tag and any ID3v1/APE trailer, FLAC frames after the last metadata block, or the `data` / `SSND` chunk body. MP3 trailers are compared separately.
-   - **Strict re-read:** lofty re-reads the copy strictly; the Comment equals the request, every other `TrackTags` field is unchanged, and stream properties are unchanged.
-8. `fsync` the copy and atomically rename it over the original, then `fsync` the folder.
+   - **Re-read:** the scanner's read of the copy equals the original's with only the Comment changed, and stream properties are unchanged.
+7. `fsync` the copy and atomically rename it over the original, then `fsync` the folder.
 
 `overtone_core::tags` builds on this: `plan_vibe_mirroring` previews `CommentChange { track_id, path, before, after }` using `tags::apply_vibes_to_comment`; `apply_vibe_mirroring` refuses a change whose file Comment no longer matches the preview (`stale_preview`), records the first original Comment in `tag_snapshots`, writes, and refreshes the stored track through `upsert_scanned` with the new size and modification time and the unchanged audio hash, so the next scan reports it unchanged; `restore_original_comments` writes snapshots back and clears them. Failures are collected per file with stable codes (`stale_preview`, `write_refused`, `verification_failed`, `unsupported_format`, `protected_path`, `io`).
 
@@ -71,23 +73,18 @@ Vendor data present in the originals (files): `GEOB` "Serato Markers2" (612 MP3,
 
 ### Files a write refuses
 
+The tables above are from the November 26 run with the lofty writer, which wrote 1,024 of 1,082 writable files. The splicer re-run on November 27 (same corpus, same spike) wrote and verified 1,067: all 366 FLAC, all 3 AIFF, 645 of 652 MP3 and 53 of 61 WAV, with no text frame re-encoded and no frame, chunk, or block reordered. What it still refuses:
+
 | Format | Files | Reason |
 | --- | --- | --- |
 | M4A | 69 | Writing M4A is deferred. |
-| MP3 | 12 | ID3v2.3 tag contains v2.4-only frames (`TSOP`, `TSOA`, `TSOT`) lofty would drop. |
-| MP3 | 5 | lofty merges frames: 2 tags with two `TXXX` frames sharing a description, 3 with exact duplicates (`TKEY`, `TXXX`, `UFID`). |
-| MP3 | 5 | lofty normalises a frame: `POPM` gains a play counter, `TDRC` `20220310` becomes `2022-03-10`, multi-value UTF-16 `TXXX` loses its byte-order marks (3 files). |
 | MP3 | 3 | Unsynchronised tag. |
 | MP3 | 1 | Experimental tag flag. |
-| MP3 | 3 | Strict parse fails: malformed `TDEN`, `UFID` with an empty owner (2). |
-| MP3 | 5 | lofty refuses to write: `COMM`/`USLT` with an invalid language (4), `TDRC` with month 13. |
-| MP3 | 3 | lofty can't recognise the stream when saving (junk between the tag and the first MPEG frame). |
-| FLAC | 6 | lofty uppercases `tracknumber`/`discnumber` keys (3) and drops some fields such as `ACOUSTID_ID`, `ENCODER` and `LYRICS` (3). |
+| MP3 | 3 | lofty can't read the tag even tolerantly (`UFID` with an empty owner), so the scanner couldn't show the result. |
 | WAV | 7 | Two ID3 chunks (`ID3` and `id3 `); which one each DJ app reads is unknown. |
-| WAV | 5 | Strict parse or write fails: `TSOP` in v2.3, a malformed `TDRC`, a non-UTF-8 RIFF `INFO` chunk, a `COMM` with an invalid language, and one file lofty can't parse at all. |
-| AIFF | 3 | lofty's strict parse rejects a chunk size in the Interplanetary Criminal "Dubs Vol.2" files. |
+| WAV | 1 | lofty can't read the file's chunk sizes. |
 
-Refusals are reported to the DJ; the file is never touched. Most come from lofty normalising data it doesn't need to touch, which is the case for the surgical ID3v2 `COMM` patcher described in the tag research (Phase B): it would make the 12 `TSOP` files, the duplicate-frame files and the normalisation cases writable.
+Refusals are reported to the DJ; the file is never touched. Everything the lofty writer refused for normalising data (`TSOP` in v2.3, duplicate frames, `POPM`, `TDRC` dates, UTF-16 `TXXX`, invalid languages, junk before the first MPEG frame, FLAC key case and dropped fields, the AIFF chunk sizes) is now written with those bytes untouched.
 
 ## Read throughput
 
@@ -103,4 +100,4 @@ Overtone proves the bytes Serato, Traktor and Rekordbox own are unchanged, but n
 
 ## Regression gate
 
-lofty is pinned to `=0.25.5`. Re-run the spike and `cargo test -p overtone-audio` before any bump; several fixes on lofty's main branch (Vorbis custom keys, ID3v2.3 dates, EOF splice truncation) may change which files are refused.
+lofty is pinned to `=0.25.5`. It no longer writes, but it still decides what the scanner reads and so which files pass the cross-check and re-read. Re-run the spike and `cargo test -p overtone-audio` before any bump.

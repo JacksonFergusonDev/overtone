@@ -202,13 +202,51 @@ fn refuses_structures_it_cannot_preserve() {
     );
     assert_refused(&mp3(dir.path(), "dup.mp3", &dup), "several Comment frames");
 
-    let v24_only = id3_tag(3, &[("TSOP", 0, text("Artist, The"))], 0);
-    assert_refused(&mp3(dir.path(), "tsop.mp3", &v24_only), "ID3v2.4-only");
-
     let mut bad_padding = id3_tag(4, &[("TIT2", 0, text("a"))], 16);
     let last = bad_padding.len() - 1;
     bad_padding[last] = 9;
     assert_refused(&mp3(dir.path(), "pad.mp3", &bad_padding), "padding");
+}
+
+/// Frames lofty used to drop, merge, or normalise (and so were refused)
+/// now survive byte for byte, because only the Comment frame is rebuilt.
+#[test]
+fn frames_a_tag_library_would_alter_survive_byte_for_byte() {
+    let dir = TempDir::new().expect("tempdir");
+    let mut popm = b"x@y\0".to_vec();
+    popm.push(196);
+    let frames = [
+        ("TSOP", 0, text("Artist, The")),
+        ("TXXX", 0, text("ARTISTS\0A")),
+        ("TXXX", 0, text("ARTISTS\0A")),
+        ("TDRC", 0, text("20220310")),
+        ("POPM", 0, popm),
+        ("USLT", 0, comm(*b"\0\0\0", "", "la la")),
+        ("COMM", 0, comm(*b"eng", "", "old")),
+    ];
+    let tag = id3_tag(3, &frames, 64);
+    let path = mp3(dir.path(), "odd.mp3", &tag);
+    let before = raw::inspect(&path, Container::Mp3)
+        .expect("walk")
+        .id3v2
+        .expect("tag");
+    let len = std::fs::metadata(&path).expect("stat").len();
+    write_comment(&roots(), &path, Some("new #vibe")).expect("write");
+    let after = raw::inspect(&path, Container::Mp3)
+        .expect("walk")
+        .id3v2
+        .expect("tag");
+    assert_eq!(after.major, 3);
+    assert_eq!(after.frames.len(), before.frames.len());
+    for (a, b) in before.frames.iter().zip(&after.frames).take(6) {
+        assert_eq!(a, b, "{} frame changed", a.id);
+    }
+    assert_eq!(after.target_comment().expect("comment").2, "new #vibe");
+    assert_eq!(
+        std::fs::metadata(&path).expect("stat").len(),
+        len,
+        "the tag kept its size, so the audio didn't move"
+    );
 }
 
 #[test]

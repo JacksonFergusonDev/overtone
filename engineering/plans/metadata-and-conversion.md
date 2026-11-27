@@ -8,7 +8,7 @@ The order matters. Provenance comes before any lookup so fetched values never mi
 
 | Step | Work | Depends on | Status |
 |---|---|---|---|
-| 1 | Surgical ID3v2 COMM patcher | nothing | Not started |
+| 1 | Surgical ID3v2 COMM patcher | nothing | Done Nov 27: byte-level splicer for ID3v2 and FLAC, 1,067 of 1,082 files writable |
 | 2 | Per-field metadata provenance | nothing | Not started |
 | 3 | ffmpeg foundation (decision, build, wrapper crate) | nothing | Not started |
 | 4 | ffmpeg fallback decoder and integrity check in the audit | 3 | Not started |

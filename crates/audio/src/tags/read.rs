@@ -34,19 +34,6 @@ pub(crate) fn scan_options() -> ParseOptions {
         .max_junk_bytes(MAX_JUNK_BYTES)
 }
 
-/// Options for the read that precedes and follows a write: strict, with
-/// artwork (saving a tag read without artwork deletes it), and without
-/// implicit ID3v2.3 date conversions so frames are written back as read.
-pub(crate) fn write_options_parse() -> ParseOptions {
-    ParseOptions::new()
-        .read_properties(true)
-        .read_tags(true)
-        .read_cover_art(true)
-        .parsing_mode(ParsingMode::Strict)
-        .implicit_conversions(false)
-        .max_junk_bytes(MAX_JUNK_BYTES)
-}
-
 /// Wraps a lofty error, keeping its whole cause chain in the message.
 pub(crate) fn tag_error(path: &Path, err: impl std::error::Error) -> AudioError {
     let mut message = err.to_string();
@@ -107,6 +94,11 @@ pub(crate) fn read_tolerant(path: &Path) -> Result<FileMetadata, AudioError> {
     Ok(metadata)
 }
 
+/// The tags in an MP3's leading ID3v2 tag alone, parsed in relaxed mode.
+pub(crate) fn mp3_id3v2_tags(path: &Path) -> Result<TrackTags, AudioError> {
+    Ok(id3_tags(mp3_id3v2_only(path)?.as_ref(), None))
+}
+
 /// Parses only an MP3's leading ID3v2 tag (and a little audio, so lofty
 /// recognises the stream), in relaxed mode.
 fn mp3_id3v2_only(path: &Path) -> Result<Option<Id3v2Tag>, AudioError> {
@@ -134,7 +126,16 @@ fn mp3_id3v2_only(path: &Path) -> Result<Option<Id3v2Tag>, AudioError> {
 }
 
 pub(crate) fn read_with(path: &Path, options: ParseOptions) -> Result<FileMetadata, AudioError> {
-    let file_type = detect(path)?;
+    read_as(path, detect(path)?, options)
+}
+
+/// [`read_with`] for a known file type, for copies whose temporary name
+/// has no audio extension to fall back on.
+pub(crate) fn read_as(
+    path: &Path,
+    file_type: FileType,
+    options: ParseOptions,
+) -> Result<FileMetadata, AudioError> {
     let file = File::open(path).map_err(|err| AudioError::io(path, err))?;
     let mut reader = BufReader::new(file);
     reader

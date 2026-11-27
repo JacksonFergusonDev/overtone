@@ -9,7 +9,7 @@
 //! (unsynchronisation, extended headers, compressed frames, chunk layouts
 //! that don't add up) is an error, and Overtone refuses to write the file.
 
-mod flac;
+pub(crate) mod flac;
 pub(crate) mod id3v2;
 mod iff;
 

@@ -49,6 +49,7 @@ Do this on clones, never originals: `cp -c -R local/music /tmp/tag-test`, then `
 - [ ] Rekordbox: after Reload Tag, hot cues, memory cues, and the beatgrid are intact, and the Comment shows. Note whether the changed file size or modification time alone makes Rekordbox reanalyze the track.
 - [ ] Traktor: after Import Metadata, cues and the beatgrid are intact, the Comment shows, and it doesn't reanalyze.
 - [ ] Existing Comment text survives: a file with Mixed In Key text (for example `8A - Energy 6`) or a Rekordbox `/* tag */` block keeps it, with hashtags appended.
+- [ ] Files the old writer skipped now write: pick an MP3 with an ID3v2.3 tag holding `TSOP` or duplicate `TXXX` frames, a FLAC with lowercase field names, and a WAV with no tags at all (Overtone appends an `ID3` chunk at the end). After the write, each DJ app shows the Comment and every other field as before, and Serato, Rekordbox, and Traktor still see the WAV's cues.
 - [ ] `ot tag restore --write` puts the original Comments back, and the DJ apps show the originals after reloading tags.
 - [ ] Finder tags and the creation date on written files are unchanged (Get Info in Finder).
 
