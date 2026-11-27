@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-plan-rekordbox-export"
+description = "Enables the plan_rekordbox_export command without any pre-configured scope."
+commands.allow = ["plan_rekordbox_export"]
+
+[[permission]]
+identifier = "deny-plan-rekordbox-export"
+description = "Denies the plan_rekordbox_export command without any pre-configured scope."
+commands.deny = ["plan_rekordbox_export"]

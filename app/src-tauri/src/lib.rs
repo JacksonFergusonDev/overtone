@@ -57,6 +57,8 @@ pub fn run() {
             sync::dj_apps_running,
             sync::plan_serato_sync,
             sync::apply_serato_sync,
+            sync::plan_rekordbox_export,
+            sync::export_rekordbox_xml,
             sync::sync_history,
             tags::plan_tag_mirror,
             tags::apply_tag_mirror,

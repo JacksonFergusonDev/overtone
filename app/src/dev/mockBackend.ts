@@ -17,6 +17,8 @@ import type {
   ScanReport,
   SeratoFilePlan,
   SeratoSyncPlan,
+  RekordboxExportPlan,
+  RekordboxExportReport,
   SeratoSyncReport,
   SpectrogramImage,
   SyncRun,
@@ -156,6 +158,8 @@ interface Internal {
   history: SyncRun[];
   /** Crate sizes as last synced to Serato, by vibe id. */
   synced: Map<number, number>;
+  /** What the last mock Rekordbox export contained, or null before one. */
+  rekordboxExported: string | null;
   /** Original Comments recorded before the first tag mirror write. */
   snapshots: Map<number, string | null>;
   auditRunning: boolean;
@@ -310,6 +314,7 @@ function generate(): Internal {
     waveforms: new Map(),
     history: [],
     synced: new Map(),
+    rekordboxExported: null,
     snapshots: new Map(),
     auditRunning: false,
     cancelAudit: false,
@@ -430,6 +435,39 @@ export function createMockBackend(): (
       .split("/")
       .map((s) => s.trim())
       .join("/");
+  };
+  const rekordboxSignature = () =>
+    JSON.stringify(
+      state.vibes.map((v) => [
+        v.path,
+        state.tracks
+          .filter((t) => t.vibes.includes(v.id) && t.missing_since === null)
+          .map((t) => t.id),
+      ]),
+    );
+  const planRekordbox = (path: unknown): RekordboxExportPlan => {
+    const playlists = state.vibes
+      .map((v) => ({
+        path: v.path.split("/"),
+        track_count: state.tracks.filter(
+          (t) => t.vibes.includes(v.id) && t.missing_since === null,
+        ).length,
+      }))
+      .filter((p) => p.track_count > 0);
+    const tracks = new Set(
+      state.tracks
+        .filter((t) => t.vibes.length > 0 && t.missing_since === null)
+        .map((t) => t.id),
+    );
+    const exists = state.rekordboxExported !== null;
+    return {
+      path: typeof path === "string" ? path : "/mock/data/rekordbox.xml",
+      track_count: tracks.size,
+      playlist_count: playlists.length,
+      playlists,
+      changed: state.rekordboxExported !== rekordboxSignature(),
+      exists,
+    };
   };
   const recordSync = (app: DjApp, target: string, summaryText: string) => {
     state.history.unshift({
@@ -644,6 +682,24 @@ export function createMockBackend(): (
       for (const plan of plans)
         recordSync("serato", plan.serato_dir, `${plan.files.length} crates`);
       return { folders };
+    },
+    plan_rekordbox_export: ({ path }) => planRekordbox(path),
+    export_rekordbox_xml: ({ path }): RekordboxExportReport => {
+      const plan = planRekordbox(path);
+      const report: RekordboxExportReport = {
+        path: plan.path,
+        track_count: plan.track_count,
+        playlist_count: plan.playlist_count,
+        changed: plan.changed,
+        backup_path:
+          plan.changed && plan.exists
+            ? `/mock/backups/rekordbox/${Date.now()}/rekordbox.xml`
+            : null,
+        rekordbox_running: false,
+      };
+      state.rekordboxExported = rekordboxSignature();
+      recordSync("rekordbox", plan.path, `${plan.playlist_count} playlists`);
+      return report;
     },
     plan_tag_mirror: ({ vibe }): CommentChange[] => {
       const scope =

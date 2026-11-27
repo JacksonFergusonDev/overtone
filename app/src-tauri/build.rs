@@ -23,6 +23,8 @@ const COMMANDS: &[&str] = &[
     "dj_apps_running",
     "plan_serato_sync",
     "apply_serato_sync",
+    "plan_rekordbox_export",
+    "export_rekordbox_xml",
     "plan_tag_mirror",
     "apply_tag_mirror",
     "restore_comments",

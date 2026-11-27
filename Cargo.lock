@@ -2717,6 +2717,7 @@ version = "0.1.0"
 dependencies = [
  "overtone-audio",
  "overtone-core",
+ "overtone-sync-rekordbox",
  "overtone-sync-serato",
  "overtone-testkit",
  "serde",

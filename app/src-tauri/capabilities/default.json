@@ -28,6 +28,8 @@
     "allow-dj-apps-running",
     "allow-plan-serato-sync",
     "allow-apply-serato-sync",
+    "allow-plan-rekordbox-export",
+    "allow-export-rekordbox-xml",
     "allow-plan-tag-mirror",
     "allow-apply-tag-mirror",
     "allow-restore-comments",

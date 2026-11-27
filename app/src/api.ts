@@ -6,6 +6,8 @@ import type { CommandError } from "./bindings/CommandError";
 import type { CommentChange } from "./bindings/CommentChange";
 import type { LibraryRoot } from "./bindings/LibraryRoot";
 import type { MirrorReport } from "./bindings/MirrorReport";
+import type { RekordboxExportPlan } from "./bindings/RekordboxExportPlan";
+import type { RekordboxExportReport } from "./bindings/RekordboxExportReport";
 import type { ReviewStatus } from "./bindings/ReviewStatus";
 import type { RunningApps } from "./bindings/RunningApps";
 import type { ScanProgress } from "./bindings/ScanProgress";
@@ -28,6 +30,8 @@ export type {
   CommentChange,
   LibraryRoot,
   MirrorReport,
+  RekordboxExportPlan,
+  RekordboxExportReport,
   ReviewStatus,
   RunningApps,
   ScanProgress,
@@ -49,6 +53,7 @@ export type { LibrarySummary } from "./bindings/LibrarySummary";
 export type { MirrorFailure } from "./bindings/MirrorFailure";
 export type { QualityReport } from "./bindings/QualityReport";
 export type { QualityVerdict } from "./bindings/QualityVerdict";
+export type { RekordboxPlaylistSummary } from "./bindings/RekordboxPlaylistSummary";
 export type { ScanFailure } from "./bindings/ScanFailure";
 export type { SeratoFilePlan } from "./bindings/SeratoFilePlan";
 export type { SeratoFileAction } from "./bindings/SeratoFileAction";
@@ -213,6 +218,11 @@ export const commands = {
     invoke<SeratoSyncPlan[]>("plan_serato_sync", { seratoDir }),
   applySeratoSync: (seratoDir: string | null) =>
     invoke<SeratoSyncReport>("apply_serato_sync", { seratoDir }),
+  /** `null` uses `rekordbox.xml` in Overtone's data folder. */
+  planRekordboxExport: (path: string | null) =>
+    invoke<RekordboxExportPlan>("plan_rekordbox_export", { path }),
+  exportRekordboxXml: (path: string | null) =>
+    invoke<RekordboxExportReport>("export_rekordbox_xml", { path }),
   /** `vibe` limits the mirror to one vibe; `null` covers every track. */
   planTagMirror: (vibe: string | null) =>
     invoke<CommentChange[]>("plan_tag_mirror", { vibe }),

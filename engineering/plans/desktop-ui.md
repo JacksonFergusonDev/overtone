@@ -6,7 +6,7 @@ How the Phase 4 desktop app is split into packages, and the IPC contract between
 
 1. **Tauri commands** (`app/src-tauri/`, plus small additions to `crates/core` where a workflow is missing): thin commands over `overtone-core`, progress channels, the runtime asset-protocol scope, and the spectrogram cache.
 2. **Frontend** (`app/src/`): the library view, player and waveform scrubber, quality inspector, vibe tagging, sync panel, and settings. Built against the mock backend first, so it runs in a browser with `pnpm dev` and in vitest.
-3. **Rekordbox XML export** (Phase 3, `crates/sync-rekordbox` and `crates/core/src/sync.rs`). Its Tauri commands are added after it merges.
+3. **Rekordbox XML export** (Phase 3, `crates/sync-rekordbox` and `crates/core/src/sync.rs`), with its Tauri commands added after it merged.
 
 ## IPC contract
 
@@ -38,7 +38,8 @@ Every command returns `Result<T, CommandError>`. Types in `app/src/bindings/` co
 | `apply_tag_mirror` | `vibe: string \| null` | `MirrorReport` |
 | `restore_comments` | | `MirrorReport` |
 | `sync_history` | `limit: number` | `SyncRun[]` |
-| `plan_rekordbox_export` / `export_rekordbox_xml` | added with Phase 3 | |
+| `plan_rekordbox_export` | `path: string \| null` (null = `rekordbox.xml` in the app data folder) | `RekordboxExportPlan` |
+| `export_rekordbox_xml` | `path: string \| null` | `RekordboxExportReport` (backs up a file it replaces) |
 
 Argument names are camelCase on the frontend; Tauri maps them to the Rust snake_case parameters.
 
