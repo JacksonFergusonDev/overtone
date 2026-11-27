@@ -1,63 +1,108 @@
-import { useEffect, useState } from "react";
-import { commands, errorMessage, type AppStatus } from "./api";
+import { useEffect } from "react";
+import { HotkeysProvider } from "react-hotkeys-hook";
+import { Inspector } from "./components/Inspector";
+import { LibraryView } from "./components/LibraryView";
+import {
+  ConfirmDialog,
+  ShortcutsOverlay,
+  StatusBar,
+  Toasts,
+} from "./components/Overlays";
+import { PlayerBar } from "./components/PlayerBar";
+import { QuickTagPalette } from "./components/QuickTagPalette";
+import { SettingsView } from "./components/SettingsView";
+import { Sidebar } from "./components/Sidebar";
+import { SyncView } from "./components/SyncView";
+import {
+  BASE_SCOPES,
+  useGlobalHotkeys,
+  useModalScopes,
+} from "./hooks/useAppHotkeys";
+import { loadLibrary, useLibrary } from "./store/library";
+import { useUi, type View } from "./store/ui";
 import "./styles.css";
 
-export default function App() {
-  const [status, setStatus] = useState<AppStatus | null>(null);
-  const [error, setError] = useState<string | null>(null);
+const VIEWS: { view: View; render: () => React.ReactNode }[] = [
+  { view: "library", render: () => <LibraryView tableKey="library" /> },
+  { view: "review", render: () => <LibraryView tableKey="review" /> },
+  { view: "sync", render: () => <SyncView /> },
+  { view: "settings", render: () => <SettingsView /> },
+];
 
-  useEffect(() => {
-    let active = true;
-    commands
-      .appStatus()
-      .then((data) => {
-        if (active) setStatus(data);
-      })
-      .catch((err: unknown) => {
-        if (active) setError(errorMessage(err));
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
+function Shell() {
+  useModalScopes();
+  useGlobalHotkeys();
+  const view = useUi((s) => s.view);
+  const visited = useUi((s) => s.visited);
+  const modal = useUi((s) => s.modal);
+  const inspectorOpen = useUi((s) => s.inspectorOpen);
+  const showInspector =
+    inspectorOpen && (view === "library" || view === "review");
 
   return (
-    <main className="shell">
-      <header className="header">
-        <h1>Overtone</h1>
-        <p className="subtitle">
-          DJ library hub for spectral quality checks, overlapping vibes, and
-          Serato, Rekordbox, and Traktor sync.
-        </p>
-      </header>
-      <section className="panel" aria-live="polite">
-        {error ? (
-          <p className="error" role="alert">
-            Couldn't open your library: {error}
-          </p>
-        ) : status ? (
-          <dl className="stats">
-            <div>
-              <dt>Version</dt>
-              <dd>{status.version}</dd>
-            </div>
-            <div>
-              <dt>Tracks</dt>
-              <dd>{status.library.track_count}</dd>
-            </div>
-            <div>
-              <dt>Vibes</dt>
-              <dd>{status.library.vibe_count}</dd>
-            </div>
-            <div>
-              <dt>Needs review</dt>
-              <dd>{status.library.needs_review_count}</dd>
-            </div>
-          </dl>
-        ) : (
-          <p className="muted">Opening your library…</p>
+    <div className={`app${showInspector ? " with-inspector" : ""}`}>
+      <Sidebar />
+      <main className="main">
+        {/* Views stay mounted once shown, so scroll and selection survive. */}
+        {VIEWS.filter(({ view: v }) => visited.has(v)).map(
+          ({ view: v, render }) => (
+            <section
+              key={v}
+              className="view-slot"
+              hidden={v !== view}
+              aria-label={v}
+            >
+              {render()}
+            </section>
+          ),
         )}
-      </section>
-    </main>
+      </main>
+      {showInspector && <Inspector />}
+      <PlayerBar />
+      <StatusBar />
+      <Toasts />
+      {modal === "palette" && <QuickTagPalette />}
+      {modal === "shortcuts" && <ShortcutsOverlay />}
+      <ConfirmDialog />
+    </div>
+  );
+}
+
+export default function App() {
+  const load = useLibrary((s) => s.load);
+  const error = useLibrary((s) => s.error);
+
+  useEffect(() => {
+    void loadLibrary();
+  }, []);
+
+  if (load === "error") {
+    return (
+      <main className="fatal">
+        <h1>Overtone</h1>
+        <p className="error" role="alert">
+          Couldn't open your library: {error}
+        </p>
+        <p className="dim">
+          Quit and reopen Overtone after fixing the problem above.
+        </p>
+      </main>
+    );
+  }
+
+  if (load !== "ready") {
+    return (
+      <main className="fatal">
+        <p className="dim" role="status">
+          Opening your library…
+        </p>
+      </main>
+    );
+  }
+
+  return (
+    <HotkeysProvider initiallyActiveScopes={BASE_SCOPES}>
+      <Shell />
+    </HotkeysProvider>
   );
 }
