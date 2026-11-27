@@ -10,6 +10,7 @@ license.workspace = true
 flacenc.workspace = true
 hound.workspace = true
 overtone-library.workspace = true
+realfft.workspace = true
 tempfile.workspace = true
 
 [lints]
