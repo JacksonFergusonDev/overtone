@@ -7,6 +7,9 @@ import type {
   MirrorReport,
   RekordboxExportPlan,
   RekordboxExportReport,
+  RekordboxTagChange,
+  RekordboxTagPlan,
+  RekordboxTagReport,
   RunningApps,
   SeratoFileAction,
   SeratoSyncPlan,
@@ -615,6 +618,179 @@ export function RekordboxSection({
   );
 }
 
+const TAG_ACTION_LABELS: Record<RekordboxTagChange["action"], string> = {
+  create: "New tag",
+  update: "Update",
+  unchanged: "Unchanged",
+  delete: "Remove tag",
+};
+
+/** Writes vibes as My Tags in Rekordbox's own database. */
+export function RekordboxTagsSection({
+  running,
+  onApplied,
+}: {
+  running: RunningApps | null;
+  onApplied: () => void;
+}) {
+  const [plan, setPlan] = useState<RekordboxTagPlan | null>(null);
+  const [report, setReport] = useState<RekordboxTagReport | null>(null);
+  const [busy, setBusy] = useState<"plan" | "apply" | null>(null);
+  const blocked =
+    (running?.rekordbox ?? false) ||
+    (plan !== null && (plan.rekordbox_running || plan.agent_running));
+
+  const preview = async () => {
+    setBusy("plan");
+    try {
+      setPlan(await backend.planRekordboxTags(null));
+      setReport(null);
+    } catch (error) {
+      notifyError(`Couldn't preview the My Tag sync: ${errorMessage(error)}`);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const apply = async () => {
+    if (!plan) return;
+    const ok = await confirmAction({
+      title: "Update Rekordbox's database?",
+      body: `Overtone writes ${plan.tags.length} My Tags into the Overtone category of\n${plan.db_path}\n\nIt backs up the database first, edits and checks a copy, then replaces the original. Your own My Tags stay as they are.`,
+      confirmLabel: "Apply",
+    });
+    if (!ok) return;
+    setBusy("apply");
+    try {
+      setReport(await backend.applyRekordboxTags(null));
+      setPlan(null);
+      onApplied();
+    } catch (error) {
+      notifyError(`My Tag sync failed: ${errorMessage(error)}`);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const tagRows = plan?.tags.filter((tag) => tag.action !== "unchanged") ?? [];
+
+  return (
+    <SyncTargetCard
+      title="Rekordbox My Tags"
+      app="rekordbox"
+      running={running}
+      runningNote="Rekordbox is running. Quit it, including rekordboxAgent in the menu bar, before applying. You can still preview."
+      description="Each vibe becomes a My Tag in an Overtone category of Rekordbox's own database, so you can filter by vibe without importing anything."
+      actions={
+        <>
+          <button
+            type="button"
+            className="btn"
+            disabled={busy !== null}
+            onClick={() => void preview()}
+          >
+            {busy === "plan" ? "Previewing…" : "Preview"}
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={
+              busy !== null || plan === null || !plan.changed || blocked
+            }
+            title={
+              plan === null
+                ? "Preview the changes first"
+                : blocked
+                  ? "Quit Rekordbox and rekordboxAgent first"
+                  : undefined
+            }
+            onClick={() => void apply()}
+          >
+            {busy === "apply" ? "Applying…" : "Apply"}
+          </button>
+        </>
+      }
+    >
+      {plan && (
+        <div className="plan">
+          <h3 className="plan-title truncate" title={plan.db_path}>
+            {plan.db_path}
+          </h3>
+          <p className="dim num">
+            {plan.changed
+              ? `${plan.added} tag assignments added, ${plan.removed} removed${
+                  plan.create_category ? " · creates the Overtone category" : ""
+                }`
+              : "already up to date"}
+          </p>
+          {plan.agent_running && !plan.rekordbox_running && (
+            <p className="banner banner-warn" role="note">
+              rekordboxAgent is running. Quit it from the menu bar before
+              applying.
+            </p>
+          )}
+          {tagRows.length > 0 && (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">My Tag</th>
+                  <th scope="col">Change</th>
+                  <th scope="col" className="num">
+                    Tracks after
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {tagRows.map((tag) => (
+                  <tr key={tag.name}>
+                    <td className="truncate" title={tag.name}>
+                      {tag.name}
+                    </td>
+                    <td>
+                      {TAG_ACTION_LABELS[tag.action]}
+                      {(tag.added > 0 || tag.removed > 0) &&
+                        ` (+${tag.added} / -${tag.removed})`}
+                    </td>
+                    <td className="num">{tag.track_count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {plan.skipped_tracks.length > 0 && (
+            <details>
+              <summary>
+                {plan.skipped_tracks.length} tracks aren't in Rekordbox and are
+                left out. Import them in Rekordbox, then sync again.
+              </summary>
+              <ul className="mono small">
+                {plan.skipped_tracks.slice(0, 200).map((path) => (
+                  <li key={path} className="truncate" title={path}>
+                    {fileName(path)}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </div>
+      )}
+      {report && (
+        <div className="report" role="status">
+          <p>
+            {report.changed ? `Updated My Tags in ` : "Nothing changed in "}
+            <span className="mono">{report.db_path}</span>
+            {report.backup_dir && (
+              <>
+                . Backup in <span className="mono">{report.backup_dir}</span>
+              </>
+            )}
+          </p>
+        </div>
+      )}
+    </SyncTargetCard>
+  );
+}
+
 /** Writes vibes as playlists into Traktor's collection.nml. */
 export function TraktorSection({
   running,
@@ -852,6 +1028,7 @@ export function SyncView() {
       </p>
       <SeratoSection running={running} onApplied={refresh} />
       <RekordboxSection running={running} onApplied={refresh} />
+      <RekordboxTagsSection running={running} onApplied={refresh} />
       <TraktorSection running={running} onApplied={refresh} />
       <TagMirrorSection onApplied={refresh} />
       <SyncHistory runs={runs} />

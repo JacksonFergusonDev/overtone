@@ -30,6 +30,8 @@
     "allow-apply-serato-sync",
     "allow-plan-rekordbox-export",
     "allow-export-rekordbox-xml",
+    "allow-plan-rekordbox-tags",
+    "allow-apply-rekordbox-tags",
     "allow-plan-traktor-sync",
     "allow-apply-traktor-sync",
     "allow-plan-tag-mirror",

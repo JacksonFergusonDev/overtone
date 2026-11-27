@@ -4,6 +4,7 @@ use std::path::Path;
 
 use overtone_core::fs::ProtectedRoots;
 use overtone_core::library::SyncRun;
+use overtone_core::rekordbox_db::{self, RekordboxTagPlan, RekordboxTagReport};
 use overtone_core::sync::{self, RekordboxExportPlan, RekordboxExportReport, SeratoSyncReport};
 use overtone_core::traktor::{self as traktor_sync, TraktorSyncPlan, TraktorSyncReport};
 use overtone_sync_serato::SeratoSyncPlan;
@@ -53,6 +54,21 @@ pub fn export_rekordbox(
     roots: &ProtectedRoots,
 ) -> Result<RekordboxExportReport, CommandError> {
     state.with_library(|library| sync::export_rekordbox_xml(library, path, roots))
+}
+
+pub fn plan_rekordbox_my_tags(
+    state: &AppState,
+    db: Option<&Path>,
+) -> Result<RekordboxTagPlan, CommandError> {
+    state.with_library(|library| rekordbox_db::plan_rekordbox_tags(library, db))
+}
+
+pub fn apply_rekordbox_my_tags(
+    state: &AppState,
+    db: Option<&Path>,
+    roots: &ProtectedRoots,
+) -> Result<RekordboxTagReport, CommandError> {
+    state.with_library(|library| rekordbox_db::apply_rekordbox_tags(library, db, roots))
 }
 
 pub fn plan_traktor(
@@ -116,6 +132,28 @@ pub fn export_rekordbox_xml(
     export_rekordbox(
         &state,
         path.as_deref().map(Path::new),
+        ProtectedRoots::global(),
+    )
+}
+
+/// `db` defaults to `~/Library/Pioneer/rekordbox/master.db`. Planning reads
+/// a copy, so it works while Rekordbox is open.
+#[tauri::command(async)]
+pub fn plan_rekordbox_tags(
+    state: State<'_, AppState>,
+    db: Option<String>,
+) -> Result<RekordboxTagPlan, CommandError> {
+    plan_rekordbox_my_tags(&state, db.as_deref().map(Path::new))
+}
+
+#[tauri::command(async)]
+pub fn apply_rekordbox_tags(
+    state: State<'_, AppState>,
+    db: Option<String>,
+) -> Result<RekordboxTagReport, CommandError> {
+    apply_rekordbox_my_tags(
+        &state,
+        db.as_deref().map(Path::new),
         ProtectedRoots::global(),
     )
 }

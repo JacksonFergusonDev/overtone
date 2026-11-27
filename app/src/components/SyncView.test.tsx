@@ -229,4 +229,46 @@ describe("Sync view", () => {
     ).toBeInTheDocument();
     expect(backend.applyTraktorSync).toHaveBeenCalledWith(null);
   });
+
+  it("previews My Tag changes and blocks Apply while rekordboxAgent runs", async () => {
+    backend.planRekordboxTags.mockResolvedValue({
+      db_path: "/Pioneer/rekordbox/master.db",
+      create_category: true,
+      tags: [
+        {
+          name: "Dubs/Deep",
+          action: "create",
+          track_count: 2,
+          added: 2,
+          removed: 0,
+        },
+        {
+          name: "Warmup",
+          action: "unchanged",
+          track_count: 1,
+          added: 0,
+          removed: 0,
+        },
+      ],
+      added: 2,
+      removed: 0,
+      skipped_tracks: ["/music/Not Imported.flac"],
+      changed: true,
+      rekordbox_running: false,
+      agent_running: true,
+    });
+    const { user } = await openSync();
+    const tags = card("Rekordbox My Tags");
+    await user.click(within(tags).getByRole("button", { name: "Preview" }));
+    expect(await within(tags).findByText("Dubs/Deep")).toBeInTheDocument();
+    expect(within(tags).queryByText("Warmup")).not.toBeInTheDocument();
+    expect(
+      within(tags).getByText(/creates the Overtone category/),
+    ).toBeInTheDocument();
+    expect(within(tags).getByText("Not Imported.flac")).toBeInTheDocument();
+    expect(
+      within(tags).getByText(/rekordboxAgent is running/),
+    ).toBeInTheDocument();
+    expect(within(tags).getByRole("button", { name: "Apply" })).toBeDisabled();
+  });
 });

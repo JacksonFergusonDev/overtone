@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-plan-rekordbox-tags"
+description = "Enables the plan_rekordbox_tags command without any pre-configured scope."
+commands.allow = ["plan_rekordbox_tags"]
+
+[[permission]]
+identifier = "deny-plan-rekordbox-tags"
+description = "Denies the plan_rekordbox_tags command without any pre-configured scope."
+commands.deny = ["plan_rekordbox_tags"]

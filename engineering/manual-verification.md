@@ -103,7 +103,7 @@ Check at the default window size (1280x860) and the minimum (840x560). See [Usin
 - [ ] The spectrogram's frequency labels line up with the image, and the dashed cutoff line sits where the energy falls off, in both linear and log scales.
 - [ ] In Needs review, `O` and `R` advance to the next flagged track and playback follows. Judge whether that flow is fast enough for a real triage session.
 - [ ] Dragging selected rows onto a vibe in the sidebar tags them.
-- [ ] The Sync view's Serato Apply, Rekordbox Export, and Comment tag Apply each match the CLI's result for the same library (run them on the throwaway setups described in the sections above).
+- [ ] The Sync view's Serato Apply, Rekordbox Export, Rekordbox My Tags Apply, Traktor Apply, and Comment tag Apply each match the CLI's result for the same library (run them on the throwaway setups described in the sections above).
 - [ ] Focus rings are visible on every control, and text contrast is comfortable in a dark room.
 
 ## Traktor collection sync

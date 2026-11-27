@@ -8,6 +8,8 @@ import type { LibraryRoot } from "./bindings/LibraryRoot";
 import type { MirrorReport } from "./bindings/MirrorReport";
 import type { RekordboxExportPlan } from "./bindings/RekordboxExportPlan";
 import type { RekordboxExportReport } from "./bindings/RekordboxExportReport";
+import type { RekordboxTagPlan } from "./bindings/RekordboxTagPlan";
+import type { RekordboxTagReport } from "./bindings/RekordboxTagReport";
 import type { ReviewStatus } from "./bindings/ReviewStatus";
 import type { RunningApps } from "./bindings/RunningApps";
 import type { ScanProgress } from "./bindings/ScanProgress";
@@ -34,6 +36,8 @@ export type {
   MirrorReport,
   RekordboxExportPlan,
   RekordboxExportReport,
+  RekordboxTagPlan,
+  RekordboxTagReport,
   ReviewStatus,
   RunningApps,
   ScanProgress,
@@ -58,6 +62,8 @@ export type { MirrorFailure } from "./bindings/MirrorFailure";
 export type { QualityReport } from "./bindings/QualityReport";
 export type { QualityVerdict } from "./bindings/QualityVerdict";
 export type { RekordboxPlaylistSummary } from "./bindings/RekordboxPlaylistSummary";
+export type { RekordboxTagAction } from "./bindings/RekordboxTagAction";
+export type { RekordboxTagChange } from "./bindings/RekordboxTagChange";
 export type { ScanFailure } from "./bindings/ScanFailure";
 export type { SeratoFilePlan } from "./bindings/SeratoFilePlan";
 export type { SeratoFileAction } from "./bindings/SeratoFileAction";
@@ -229,6 +235,11 @@ export const commands = {
     invoke<RekordboxExportPlan>("plan_rekordbox_export", { path }),
   exportRekordboxXml: (path: string | null) =>
     invoke<RekordboxExportReport>("export_rekordbox_xml", { path }),
+  /** `null` uses `~/Library/Pioneer/rekordbox/master.db`. Planning reads a copy. */
+  planRekordboxTags: (db: string | null) =>
+    invoke<RekordboxTagPlan>("plan_rekordbox_tags", { db }),
+  applyRekordboxTags: (db: string | null) =>
+    invoke<RekordboxTagReport>("apply_rekordbox_tags", { db }),
   /** `null` uses the only `collection.nml` Traktor has. */
   planTraktorSync: (collection: string | null) =>
     invoke<TraktorSyncPlan>("plan_traktor_sync", { collection }),

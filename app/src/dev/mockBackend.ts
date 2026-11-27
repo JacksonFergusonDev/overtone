@@ -20,6 +20,8 @@ import type {
   RekordboxExportPlan,
   RekordboxExportReport,
   SeratoSyncReport,
+  RekordboxTagPlan,
+  RekordboxTagReport,
   TraktorSyncPlan,
   TraktorSyncReport,
   SpectrogramImage,
@@ -164,6 +166,8 @@ interface Internal {
   rekordboxExported: string | null;
   /** What the last mock Traktor sync contained, or null before one. */
   traktorSynced: string | null;
+  /** What the last mock My Tag sync contained, or null before one. */
+  tagsSynced: string | null;
   /** Original Comments recorded before the first tag mirror write. */
   snapshots: Map<number, string | null>;
   auditRunning: boolean;
@@ -320,6 +324,7 @@ function generate(): Internal {
     synced: new Map(),
     rekordboxExported: null,
     traktorSynced: null,
+    tagsSynced: null,
     snapshots: new Map(),
     auditRunning: false,
     cancelAudit: false,
@@ -472,6 +477,40 @@ export function createMockBackend(): (
       playlists,
       changed: state.rekordboxExported !== rekordboxSignature(),
       exists,
+    };
+  };
+  const planTags = (db: unknown): RekordboxTagPlan => {
+    const fresh = state.tagsSynced === null;
+    const changed = state.tagsSynced !== rekordboxSignature();
+    const tags = state.vibes.map((v) => {
+      const count = state.tracks.filter(
+        (t) => t.vibes.includes(v.id) && t.missing_since === null,
+      ).length;
+      return {
+        name: v.path,
+        action: (fresh
+          ? "create"
+          : changed
+            ? "update"
+            : "unchanged") as RekordboxTagPlan["tags"][number]["action"],
+        track_count: count,
+        added: changed ? count : 0,
+        removed: 0,
+      };
+    });
+    return {
+      db_path:
+        typeof db === "string"
+          ? db
+          : "/mock/Library/Pioneer/rekordbox/master.db",
+      create_category: fresh,
+      tags,
+      added: tags.reduce((n, t) => n + t.added, 0),
+      removed: 0,
+      skipped_tracks: [],
+      changed,
+      rekordbox_running: false,
+      agent_running: false,
     };
   };
   const planTraktor = (collection: unknown): TraktorSyncPlan => {
@@ -731,6 +770,28 @@ export function createMockBackend(): (
       state.rekordboxExported = rekordboxSignature();
       recordSync("rekordbox", plan.path, `${plan.playlist_count} playlists`);
       return report;
+    },
+    plan_rekordbox_tags: ({ db }) => planTags(db),
+    apply_rekordbox_tags: ({ db }): RekordboxTagReport => {
+      const plan = planTags(db);
+      state.tagsSynced = rekordboxSignature();
+      if (plan.changed)
+        recordSync("rekordbox", plan.db_path, `${plan.tags.length} My Tags`);
+      return {
+        db_path: plan.db_path,
+        changed: plan.changed,
+        created_category: plan.create_category,
+        created_tags: plan.tags
+          .filter((t) => t.action === "create")
+          .map((t) => t.name),
+        deleted_tags: [],
+        added: plan.added,
+        removed: plan.removed,
+        skipped_tracks: plan.skipped_tracks,
+        backup_dir: plan.changed
+          ? `/mock/backups/rekordbox-db/${Date.now()}`
+          : null,
+      };
     },
     plan_traktor_sync: ({ collection }) => planTraktor(collection),
     apply_traktor_sync: ({ collection }): TraktorSyncReport => {
