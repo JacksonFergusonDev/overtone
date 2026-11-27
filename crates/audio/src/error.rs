@@ -13,6 +13,14 @@ pub enum AudioError {
     },
     #[error("unsupported audio format: {0}")]
     UnsupportedFormat(String),
+    /// The container was recognized but its structure is truncated or
+    /// inconsistent.
+    #[error("malformed {container} file at {path}: {reason}")]
+    Malformed {
+        path: PathBuf,
+        container: &'static str,
+        reason: String,
+    },
     #[error("not implemented yet: {0}")]
     NotImplemented(&'static str),
 }
