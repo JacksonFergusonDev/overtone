@@ -13,6 +13,7 @@ use thiserror::Error;
 use ts_rs::TS;
 
 pub mod scan;
+pub mod tags;
 
 pub use overtone_fs as fs;
 pub use overtone_library as library;
