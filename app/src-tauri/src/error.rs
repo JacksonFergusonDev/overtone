@@ -14,6 +14,22 @@ pub struct CommandError {
 }
 
 impl CommandError {
+    /// Another job of the same kind is already running.
+    pub fn busy(message: impl Into<String>) -> Self {
+        Self {
+            code: "busy".into(),
+            message: message.into(),
+        }
+    }
+
+    /// A file or folder couldn't be read or written.
+    pub fn io(message: impl Into<String>) -> Self {
+        Self {
+            code: "io".into(),
+            message: message.into(),
+        }
+    }
+
     pub fn internal(message: impl Into<String>) -> Self {
         Self {
             code: "internal".into(),
@@ -28,5 +44,17 @@ impl From<&CoreError> for CommandError {
             code: err.code().into(),
             message: err.to_string(),
         }
+    }
+}
+
+impl From<CoreError> for CommandError {
+    fn from(err: CoreError) -> Self {
+        Self::from(&err)
+    }
+}
+
+impl From<overtone_core::library::LibraryError> for CommandError {
+    fn from(err: overtone_core::library::LibraryError) -> Self {
+        Self::from(CoreError::from(err))
     }
 }

@@ -65,3 +65,13 @@ Test on a throwaway Serato library: a spare macOS user account, or temporarily s
 - [ ] `ot sync serato` refuses while Serato DJ is running.
 - [ ] Tracks on an external drive sync into that drive's `/Volumes/<Drive>/_Serato_` folder and appear in Serato (no external-drive sample has been tested yet).
 - [ ] Serato DJ 3.x, if you still use it, also picks up the crates.
+
+## Desktop app commands
+
+Run the desktop app against a copy of your library under `local/` (see AGENTS.md), not real data.
+
+- [ ] After adding a folder in the app, audio from that folder plays without restarting (the asset-protocol scope widens in `add_root`).
+- [ ] Audio outside library folders can't be loaded by the webview.
+- [ ] A removed folder's audio stays playable until the app restarts (Tauri can't narrow the scope again). Confirm that's acceptable.
+- [ ] A full audit can be cancelled from the UI; finished tracks keep their reports and a second audit starts afterwards.
+- [ ] Spectrogram PNGs appear under `~/Library/Caches/com.jacksonferguson.overtone/spectrograms/` and are replaced when the audio file changes.

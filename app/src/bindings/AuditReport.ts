@@ -5,7 +5,15 @@ import type { VerdictCounts } from "./VerdictCounts";
 /**
  * Summary of a finished audit.
  */
-export type AuditReport = { analyzed: number, verdicts: VerdictCounts, 
+export type AuditReport = { analyzed: number, 
+/**
+ * Tracks left unanalyzed because the audit was cancelled.
+ */
+skipped: number, 
+/**
+ * Whether the audit was stopped before it finished.
+ */
+cancelled: boolean, verdicts: VerdictCounts, 
 /**
  * Tracks now flagged Warning or Suspect, in the order they finished.
  */

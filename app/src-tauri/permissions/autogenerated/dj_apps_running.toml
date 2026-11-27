@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-dj-apps-running"
+description = "Enables the dj_apps_running command without any pre-configured scope."
+commands.allow = ["dj_apps_running"]
+
+[[permission]]
+identifier = "deny-dj-apps-running"
+description = "Denies the dj_apps_running command without any pre-configured scope."
+commands.deny = ["dj_apps_running"]

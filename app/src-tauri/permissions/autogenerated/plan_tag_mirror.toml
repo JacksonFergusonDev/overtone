@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-plan-tag-mirror"
+description = "Enables the plan_tag_mirror command without any pre-configured scope."
+commands.allow = ["plan_tag_mirror"]
+
+[[permission]]
+identifier = "deny-plan-tag-mirror"
+description = "Denies the plan_tag_mirror command without any pre-configured scope."
+commands.deny = ["plan_tag_mirror"]

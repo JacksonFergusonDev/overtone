@@ -19,7 +19,9 @@ crate-type = ["rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+overtone-audio.workspace = true
 overtone-core.workspace = true
+overtone-sync-serato.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tauri = { version = "2", features = ["protocol-asset"] }
@@ -27,6 +29,7 @@ tauri-plugin-dialog = "2"
 ts-rs.workspace = true
 
 [dev-dependencies]
+overtone-testkit.workspace = true
 tempfile.workspace = true
 tauri = { version = "2", features = ["protocol-asset", "test"] }
 

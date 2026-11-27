@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-audit-tracks"
+description = "Enables the audit_tracks command without any pre-configured scope."
+commands.allow = ["audit_tracks"]
+
+[[permission]]
+identifier = "deny-audit-tracks"
+description = "Denies the audit_tracks command without any pre-configured scope."
+commands.deny = ["audit_tracks"]

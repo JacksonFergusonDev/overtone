@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-create-vibe"
+description = "Enables the create_vibe command without any pre-configured scope."
+commands.allow = ["create_vibe"]
+
+[[permission]]
+identifier = "deny-create-vibe"
+description = "Denies the create_vibe command without any pre-configured scope."
+commands.deny = ["create_vibe"]
