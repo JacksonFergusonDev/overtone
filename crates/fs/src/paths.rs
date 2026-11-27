@@ -29,6 +29,11 @@ pub fn home_dir() -> Option<PathBuf> {
     dirs::home_dir()
 }
 
+/// The user's Documents folder, where Traktor keeps its collection.
+pub fn documents_dir() -> Option<PathBuf> {
+    dirs::document_dir()
+}
+
 /// Folder holding timestamped backups made before writing DJ files.
 pub fn backups_dir() -> Option<PathBuf> {
     app_data_dir().map(|dir| dir.join("backups"))

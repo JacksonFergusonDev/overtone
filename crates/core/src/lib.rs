@@ -16,6 +16,7 @@ pub mod audit;
 pub mod scan;
 pub mod sync;
 pub mod tags;
+pub mod traktor;
 
 pub use overtone_fs as fs;
 pub use overtone_library as library;
@@ -64,6 +65,9 @@ impl CoreError {
             Self::Serato(SeratoError::SeratoRunning)
             | Self::Rekordbox(RekordboxError::AppRunning)
             | Self::Traktor(TraktorError::AppRunning) => "dj_app_running",
+            Self::Traktor(TraktorError::NoCollection(_) | TraktorError::SeveralCollections(_)) => {
+                "traktor_collection"
+            }
             Self::Serato(_) => "serato",
             Self::Rekordbox(_) => "rekordbox",
             Self::Traktor(_) => "traktor",
@@ -151,6 +155,14 @@ mod tests {
         assert_eq!(
             CoreError::from(SeratoError::SeratoRunning).code(),
             "dj_app_running"
+        );
+        assert_eq!(
+            CoreError::from(TraktorError::AppRunning).code(),
+            "dj_app_running"
+        );
+        assert_eq!(
+            CoreError::from(TraktorError::SeveralCollections(Vec::new())).code(),
+            "traktor_collection"
         );
     }
 }
