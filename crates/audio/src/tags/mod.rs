@@ -24,6 +24,10 @@ pub use read::parse_bpm;
 pub use vibes::{apply_vibes_to_comment, hashtags_in};
 pub use write::write_comment;
 
+/// Version of the metadata reader. Bump it when [`read_metadata`] starts
+/// reading more or reading better, so the next scan rereads every file.
+pub const READER_VERSION: u32 = 1;
+
 /// Everything the scanner needs from a file's headers and tags.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct FileMetadata {

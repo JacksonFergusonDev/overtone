@@ -5,7 +5,7 @@ use clap::Args;
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use overtone_core::CoreError;
 use overtone_core::library::Library;
-use overtone_core::scan::{self, ScanProgress};
+use overtone_core::scan::{self, ScanOptions, ScanProgress};
 
 use crate::output::Output;
 
@@ -13,6 +13,9 @@ use crate::output::Output;
 pub struct ScanArgs {
     /// Folders to add and scan. Without any, scans every indexed folder.
     paths: Vec<PathBuf>,
+    /// Reread tags of every file, not just new or changed ones.
+    #[arg(long)]
+    refresh: bool,
 }
 
 pub fn run(library: &mut Library, args: &ScanArgs, out: &Output) -> Result<(), CoreError> {
@@ -55,10 +58,13 @@ pub fn run(library: &mut Library, args: &ScanArgs, out: &Output) -> Result<(), C
         }
     };
 
+    let options = ScanOptions {
+        refresh: args.refresh,
+    };
     let report = if roots.is_empty() {
-        scan::scan_library(library, &on_progress)?
+        scan::scan_library_with(library, options, &on_progress)?
     } else {
-        scan::scan_roots(library, &roots, &on_progress)?
+        scan::scan_roots_with(library, &roots, options, &on_progress)?
     };
     if let Ok(bar) = bar.lock() {
         bar.finish_and_clear();

@@ -55,7 +55,7 @@ impl Library {
         scanned: &ScannedTrack,
     ) -> Result<(TrackId, UpsertOutcome), LibraryError> {
         let tx = self.conn.transaction()?;
-        let result = upsert_in(&tx, scanned, now_millis())?;
+        let result = upsert_in(&tx, scanned, now_millis(), false)?;
         tx.commit()?;
         Ok(result)
     }
@@ -65,11 +65,22 @@ impl Library {
         &mut self,
         scanned: &[ScannedTrack],
     ) -> Result<Vec<(TrackId, UpsertOutcome)>, LibraryError> {
+        self.upsert_scanned_batch_with(scanned, false)
+    }
+
+    /// Like [`Self::upsert_scanned_batch`], but with `refresh` every existing
+    /// record is rewritten even when size and modification time match, for
+    /// rescans after the metadata reader improves.
+    pub fn upsert_scanned_batch_with(
+        &mut self,
+        scanned: &[ScannedTrack],
+        refresh: bool,
+    ) -> Result<Vec<(TrackId, UpsertOutcome)>, LibraryError> {
         let now = now_millis();
         let tx = self.conn.transaction()?;
         let results = scanned
             .iter()
-            .map(|track| upsert_in(&tx, track, now))
+            .map(|track| upsert_in(&tx, track, now, refresh))
             .collect::<Result<Vec<_>, _>>()?;
         tx.commit()?;
         Ok(results)
@@ -217,6 +228,7 @@ fn upsert_in(
     tx: &rusqlite::Transaction<'_>,
     scanned: &ScannedTrack,
     now: UnixMillis,
+    refresh: bool,
 ) -> Result<(TrackId, UpsertOutcome), LibraryError> {
     let existing: Option<(i64, u64, i64)> = tx
         .query_row(
@@ -231,7 +243,7 @@ fn upsert_in(
     let format = p.format.map(AudioFormat::as_str);
     match existing {
         Some((id, size, modified))
-            if size == scanned.file_size && modified == scanned.modified_at =>
+            if !refresh && size == scanned.file_size && modified == scanned.modified_at =>
         {
             tx.execute(
                 "UPDATE tracks SET missing_since = NULL WHERE id = ?1 AND missing_since IS NOT NULL",
@@ -411,6 +423,20 @@ pub(crate) mod tests {
         assert_eq!(track.tags.title.as_deref(), Some("New Title"));
         assert_eq!(track.properties.format, Some(AudioFormat::Flac));
         assert_eq!(track.tags.bpm, Some(174.0));
+    }
+
+    #[test]
+    fn refresh_rewrites_unchanged_files() {
+        let mut lib = Library::open_in_memory().expect("open");
+        let mut file = scanned("/music/a.flac");
+        lib.upsert_scanned(&file).expect("insert");
+        file.tags.title = Some("Better Title".into());
+        let results = lib
+            .upsert_scanned_batch_with(std::slice::from_ref(&file), true)
+            .expect("refresh");
+        assert_eq!(results[0].1, UpsertOutcome::Updated);
+        let track = lib.track(results[0].0).expect("load");
+        assert_eq!(track.tags.title.as_deref(), Some("Better Title"));
     }
 
     #[test]

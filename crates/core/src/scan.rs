@@ -103,9 +103,29 @@ pub fn add_root(library: &Library, path: &Path) -> Result<LibraryRoot, CoreError
     Ok(library.add_root(text)?)
 }
 
+/// Library setting recording which metadata reader filled the library.
+const READER_VERSION_SETTING: &str = "scan.reader_version";
+
+/// Options for a scan.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ScanOptions {
+    /// Reread every file, even unchanged ones. Happens automatically when
+    /// the metadata reader is newer than the one that filled the library.
+    pub refresh: bool,
+}
+
 /// Scans every folder in the library.
 pub fn scan_library(
     library: &mut Library,
+    on_progress: &(dyn Fn(ScanProgress) + Sync),
+) -> Result<ScanReport, CoreError> {
+    scan_library_with(library, ScanOptions::default(), on_progress)
+}
+
+/// [`scan_library`] with options.
+pub fn scan_library_with(
+    library: &mut Library,
+    options: ScanOptions,
     on_progress: &(dyn Fn(ScanProgress) + Sync),
 ) -> Result<ScanReport, CoreError> {
     let roots: Vec<PathBuf> = library
@@ -113,7 +133,7 @@ pub fn scan_library(
         .into_iter()
         .map(|root| PathBuf::from(root.path))
         .collect();
-    scan_roots(library, &roots, on_progress)
+    scan_roots_with(library, &roots, options, on_progress)
 }
 
 /// Scans `roots`, adding new files, refreshing changed ones, and marking
@@ -124,6 +144,19 @@ pub fn scan_roots(
     roots: &[PathBuf],
     on_progress: &(dyn Fn(ScanProgress) + Sync),
 ) -> Result<ScanReport, CoreError> {
+    scan_roots_with(library, roots, ScanOptions::default(), on_progress)
+}
+
+/// [`scan_roots`] with options.
+pub fn scan_roots_with(
+    library: &mut Library,
+    roots: &[PathBuf],
+    options: ScanOptions,
+    on_progress: &(dyn Fn(ScanProgress) + Sync),
+) -> Result<ScanReport, CoreError> {
+    let reader_version = overtone_audio::tags::READER_VERSION;
+    let stored_version: u32 = library.setting(READER_VERSION_SETTING)?.unwrap_or(0);
+    let refresh = options.refresh || stored_version < reader_version;
     let started = Instant::now();
     let mut report = ScanReport::default();
 
@@ -136,7 +169,9 @@ pub fn scan_roots(
     for file in &found {
         match stored.get(file.path.as_str()) {
             Some(state)
-                if state.file_size == file.file_size && state.modified_at == file.modified_at =>
+                if !refresh
+                    && state.file_size == file.file_size
+                    && state.modified_at == file.modified_at =>
             {
                 report.unchanged += 1;
                 if state.missing_since.is_some() {
@@ -148,8 +183,11 @@ pub fn scan_roots(
     }
     library.set_missing(&reappeared, None)?;
 
-    read_and_save(library, &to_read, on_progress, &mut report)?;
+    read_and_save(library, &to_read, refresh, on_progress, &mut report)?;
     mark_missing(library, &walks, &found, &stored, &mut report)?;
+    if stored_version < reader_version {
+        library.set_setting(READER_VERSION_SETTING, &reader_version)?;
+    }
 
     report.elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
     Ok(report)
@@ -209,6 +247,7 @@ fn unique_files(walks: &[RootWalk]) -> Vec<&FoundFile> {
 fn read_and_save(
     library: &mut Library,
     files: &[&FoundFile],
+    refresh: bool,
     on_progress: &(dyn Fn(ScanProgress) + Sync),
     report: &mut ScanReport,
 ) -> Result<(), CoreError> {
@@ -227,7 +266,7 @@ fn read_and_save(
             .collect();
         let (tracks, failures): (Vec<_>, Vec<_>) = results.into_iter().unzip();
         report.failed.extend(failures.into_iter().flatten());
-        for (_, outcome) in library.upsert_scanned_batch(&tracks)? {
+        for (_, outcome) in library.upsert_scanned_batch_with(&tracks, refresh)? {
             match outcome {
                 UpsertOutcome::Inserted => report.added += 1,
                 UpsertOutcome::Updated => report.updated += 1,
