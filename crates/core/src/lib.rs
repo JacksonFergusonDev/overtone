@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use ts_rs::TS;
 
+pub mod audit;
 pub mod scan;
 
 pub use overtone_fs as fs;
@@ -35,6 +36,8 @@ pub enum CoreError {
     Traktor(#[from] TraktorError),
     #[error("couldn't find a folder for Overtone's data; set OVERTONE_DATA_DIR")]
     NoDataDir,
+    #[error("couldn't start worker threads: {0}")]
+    Worker(String),
 }
 
 impl CoreError {
@@ -58,6 +61,7 @@ impl CoreError {
             Self::Rekordbox(_) => "rekordbox",
             Self::Traktor(_) => "traktor",
             Self::NoDataDir => "no_data_dir",
+            Self::Worker(_) => "worker",
         }
     }
 }
