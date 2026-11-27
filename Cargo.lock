@@ -2820,6 +2820,10 @@ dependencies = [
 name = "overtone-sync-rekordbox"
 version = "0.1.0"
 dependencies = [
+ "overtone-fs",
+ "overtone-model",
+ "quick-xml",
+ "sysinfo",
  "thiserror 2.0.21",
 ]
 

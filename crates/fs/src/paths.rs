@@ -34,6 +34,11 @@ pub fn backups_dir() -> Option<PathBuf> {
     app_data_dir().map(|dir| dir.join("backups"))
 }
 
+/// Default location of the exported Rekordbox XML file.
+pub fn rekordbox_xml_path() -> Option<PathBuf> {
+    app_data_dir().map(|dir| dir.join("rekordbox.xml"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
