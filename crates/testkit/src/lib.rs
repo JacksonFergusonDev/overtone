@@ -25,6 +25,29 @@ pub struct Signal {
     pub amplitude: f32,
     /// Seeds the tone phases, so the same spec always gives the same samples.
     pub seed: u64,
+    /// Sparse tones or dense noise.
+    pub kind: SignalKind,
+    /// Optional gentle roll-off applied above a frequency, like a warm
+    /// master or a vinyl rip, instead of (or before) the hard cutoff.
+    pub rolloff: Option<Rolloff>,
+}
+
+/// The spectral character of a [`Signal`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SignalKind {
+    /// 160 log-spaced tones: sparse in the treble, like hi-hats every few bars.
+    #[default]
+    Tones,
+    /// Dense pink-sloped noise (random-phase spectrum, flat when smoothed),
+    /// like a full mix. Use it for spectral-cutoff tests.
+    Noise,
+}
+
+/// A gentle roll-off: level falls by `db_per_octave` above `start_hz`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Rolloff {
+    pub start_hz: f32,
+    pub db_per_octave: f32,
 }
 
 impl Signal {
@@ -37,6 +60,36 @@ impl Signal {
             cutoff_hz,
             amplitude: 0.5,
             seed: 1,
+            kind: SignalKind::Tones,
+            rolloff: None,
+        }
+    }
+
+    /// Four seconds of 44.1 kHz stereo noise with energy up to `cutoff_hz`
+    /// and nothing above, like a decoded lossy file.
+    pub fn noise(cutoff_hz: f32) -> Self {
+        Self {
+            seconds: 4.0,
+            kind: SignalKind::Noise,
+            ..Self::cd(cutoff_hz)
+        }
+    }
+
+    /// Four seconds of 96 kHz stereo noise with energy up to `cutoff_hz`.
+    pub fn hires(cutoff_hz: f32) -> Self {
+        Self {
+            sample_rate: 96_000,
+            ..Self::noise(cutoff_hz)
+        }
+    }
+
+    /// Linear gain of the roll-off at `freq`.
+    fn rolloff_gain(&self, freq: f32) -> f32 {
+        match self.rolloff {
+            Some(r) if freq > r.start_hz => {
+                10.0_f32.powf(-r.db_per_octave * (freq / r.start_hz).log2() / 20.0)
+            }
+            _ => 1.0,
         }
     }
 
@@ -50,6 +103,9 @@ impl Signal {
     /// with a pink-like slope (amplitude falls as 1/sqrt(f)), so the spectrum
     /// resembles music rather than a single sine.
     pub fn samples(&self) -> Vec<f32> {
+        if self.kind == SignalKind::Noise {
+            return self.noise_samples();
+        }
         let nyquist = self.sample_rate as f32 / 2.0;
         let top = self.cutoff_hz.min(nyquist * 0.999).max(40.0);
         let bottom: f32 = 30.0;
@@ -59,7 +115,7 @@ impl Signal {
             .map(|i| {
                 let t = i as f32 / (tone_count - 1) as f32;
                 let freq = bottom * (top / bottom).powf(t);
-                let weight = 1.0 / freq.sqrt();
+                let weight = self.rolloff_gain(freq) / freq.sqrt();
                 let phase = rng.next_f32() * std::f32::consts::TAU;
                 (freq, weight, phase)
             })
@@ -79,6 +135,49 @@ impl Signal {
             let sample = sample.clamp(-1.0, 1.0);
             for _ in 0..channels {
                 out.push(sample);
+            }
+        }
+        out
+    }
+}
+
+impl Signal {
+    /// Noise synthesized in the frequency domain: every bin from 30 Hz to
+    /// the cutoff gets a pink (1/sqrt f) magnitude and a random phase, and
+    /// everything above is exactly zero. The result is normalised so its
+    /// peak equals `amplitude`.
+    fn noise_samples(&self) -> Vec<f32> {
+        use realfft::RealFftPlanner;
+        use realfft::num_complex::Complex;
+
+        let frames = self.frames().max(2);
+        let len = frames + frames % 2;
+        let inverse = RealFftPlanner::<f32>::new().plan_fft_inverse(len);
+        let mut spectrum = inverse.make_input_vec();
+        let bin_hz = self.sample_rate as f32 / len as f32;
+        let mut rng = XorShift(self.seed.max(1));
+        let last = spectrum.len() - 1;
+        for (k, value) in spectrum.iter_mut().enumerate() {
+            let freq = k as f32 * bin_hz;
+            if k == 0 || k == last || freq < 30.0 || freq > self.cutoff_hz {
+                continue;
+            }
+            let phase = rng.next_f32() * std::f32::consts::TAU;
+            let magnitude = self.rolloff_gain(freq) / freq.sqrt();
+            *value = Complex::from_polar(magnitude, phase);
+        }
+        let mut mono = inverse.make_output_vec();
+        inverse
+            .process(&mut spectrum, &mut mono)
+            .expect("buffers come from the planner");
+        mono.truncate(frames);
+        let peak = mono.iter().fold(0.0_f32, |m, v| m.max(v.abs())).max(1e-12);
+        let gain = self.amplitude / peak;
+        let channels = usize::from(self.channels.max(1));
+        let mut out = Vec::with_capacity(frames * channels);
+        for sample in mono.iter().take(self.frames()) {
+            for _ in 0..channels {
+                out.push(sample * gain);
             }
         }
         out
@@ -108,11 +207,23 @@ impl Fixture {
 
 /// Writes `signal` to `path` in the `fixture` format.
 pub fn write_fixture(path: &Path, signal: &Signal, fixture: Fixture) -> std::io::Result<()> {
-    let samples = signal.samples();
+    write_samples(path, &signal.samples(), signal, fixture)
+}
+
+/// Writes interleaved `samples` (for example a decoded MP3, to build a fake
+/// lossless file) using `signal`'s sample rate and channel count.
+pub fn write_samples(
+    path: &Path,
+    samples: &[f32],
+    signal: &Signal,
+    fixture: Fixture,
+) -> std::io::Result<()> {
+    let samples: Vec<f32> = samples.iter().map(|s| s.clamp(-1.0, 1.0)).collect();
+    let samples = samples.as_slice();
     match fixture {
-        Fixture::Wav { bits } => write_wav(path, &samples, signal, bits),
-        Fixture::Flac { bits } => write_flac(path, &samples, signal, bits),
-        Fixture::Aiff { bits } => write_aiff(path, &samples, signal, bits),
+        Fixture::Wav { bits } => write_wav(path, samples, signal, bits),
+        Fixture::Flac { bits } => write_flac(path, samples, signal, bits),
+        Fixture::Aiff { bits } => write_aiff(path, samples, signal, bits),
     }
 }
 
@@ -164,7 +275,20 @@ fn write_flac(path: &Path, samples: &[f32], signal: &Signal, bits: u16) -> std::
     stream
         .write(&mut sink)
         .map_err(|err| std::io::Error::other(format!("{err:?}")))?;
-    std::fs::write(path, sink.as_slice())
+    let mut bytes = sink.as_slice().to_vec();
+    // Two flacenc STREAMINFO quirks make strict decoders (symphonia)
+    // reject the file. FLAC wants the minimum block size to exclude the
+    // final, shorter block of a fixed-blocksize stream, but flacenc counts
+    // it; and its frame-size bounds can be inconsistent for 24-bit noise.
+    // Copy the maximum block size over the minimum (bytes 8-9 and 10-11,
+    // after "fLaC" and the 4-byte block header) and mark both frame sizes
+    // unknown (zero, bytes 12-17), which the format allows.
+    if bytes.len() > 18 && &bytes[..4] == b"fLaC" {
+        let (min, max) = bytes[8..12].split_at_mut(2);
+        min.copy_from_slice(max);
+        bytes[12..18].fill(0);
+    }
+    std::fs::write(path, bytes)
 }
 
 fn write_aiff(path: &Path, samples: &[f32], signal: &Signal, bits: u16) -> std::io::Result<()> {
@@ -336,6 +460,29 @@ mod tests {
             u32::from_be_bytes(bytes[4..8].try_into().expect("len")) as usize,
             bytes.len() - 8
         );
+    }
+
+    #[test]
+    fn noise_is_deterministic_bounded_and_band_limited() {
+        let signal = Signal {
+            seconds: 0.5,
+            ..Signal::noise(16_000.0)
+        };
+        let a = signal.samples();
+        assert_eq!(a, signal.samples());
+        assert_eq!(a.len(), signal.frames() * 2);
+        let peak = a.iter().fold(0.0_f32, |m, v| m.max(v.abs()));
+        assert!((peak - 0.5).abs() < 1e-3, "peak {peak}");
+        let hires = Signal::hires(20_000.0);
+        assert_eq!(hires.sample_rate, 96_000);
+        let rolled = Signal {
+            rolloff: Some(Rolloff {
+                start_hz: 1000.0,
+                db_per_octave: 12.0,
+            }),
+            ..signal
+        };
+        assert!((rolled.rolloff_gain(2000.0) - 0.251).abs() < 0.01);
     }
 
     #[test]

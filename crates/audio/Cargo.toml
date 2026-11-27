@@ -9,8 +9,12 @@ license.workspace = true
 [dependencies]
 blake3.workspace = true
 lofty.workspace = true
+colorous.workspace = true
 overtone-fs.workspace = true
 overtone-model.workspace = true
+png.workspace = true
+realfft.workspace = true
+symphonia.workspace = true
 thiserror.workspace = true
 xattr.workspace = true
 

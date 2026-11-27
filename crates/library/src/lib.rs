@@ -13,6 +13,7 @@ mod snapshots;
 mod sync_runs;
 mod tracks;
 mod vibes;
+mod waveforms;
 
 use std::path::Path;
 
@@ -27,6 +28,7 @@ pub use roots::LibraryRoot;
 pub use snapshots::{COMMENT_FIELD, TagSnapshot};
 pub use sync_runs::{SyncRun, SyncStatus};
 pub use tracks::{ScannedTrack, StoredFileState, UpsertOutcome};
+pub use waveforms::{AnalysisRecord, StoredWaveform};
 
 /// File name of the library database inside the app data directory.
 pub const LIBRARY_FILE_NAME: &str = "library.sqlite";

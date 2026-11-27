@@ -39,8 +39,22 @@ pub enum AudioError {
         check: &'static str,
         detail: String,
     },
+    /// A guarded file operation failed: a protected path, or an I/O error
+    /// while writing an output such as a spectrogram or an edited tag.
     #[error(transparent)]
     Fs(#[from] FsError),
+    /// The file opened, but its codec can't be decoded (for example HE-AAC).
+    #[error("can't decode {path}: {reason}")]
+    UnsupportedCodec { path: PathBuf, reason: String },
+    /// The file is damaged or not valid audio.
+    #[error("couldn't decode {path}: {message}")]
+    Decode { path: PathBuf, message: String },
+    /// The decoder or analyzer panicked on this file. The panic was caught so
+    /// a batch can carry on with the next track.
+    #[error("analysis crashed on {path}: {message}")]
+    Panicked { path: PathBuf, message: String },
+    #[error("couldn't encode image {path}: {message}")]
+    Image { path: PathBuf, message: String },
 }
 
 impl AudioError {

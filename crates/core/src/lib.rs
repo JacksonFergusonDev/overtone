@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use ts_rs::TS;
 
+pub mod audit;
 pub mod scan;
 pub mod sync;
 pub mod tags;
@@ -39,6 +40,8 @@ pub enum CoreError {
     NoDataDir,
     #[error("can't add {path} as a library folder: {reason}")]
     InvalidRoot { path: PathBuf, reason: String },
+    #[error("couldn't start worker threads: {0}")]
+    Worker(String),
 }
 
 impl CoreError {
@@ -65,6 +68,7 @@ impl CoreError {
             Self::Traktor(_) => "traktor",
             Self::NoDataDir => "no_data_dir",
             Self::InvalidRoot { .. } => "invalid_root",
+            Self::Worker(_) => "worker",
         }
     }
 }
