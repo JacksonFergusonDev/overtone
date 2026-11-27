@@ -2784,6 +2784,7 @@ dependencies = [
  "indicatif",
  "overtone-audio",
  "overtone-core",
+ "overtone-sync-rekordbox",
  "overtone-sync-serato",
  "overtone-testkit",
  "serde",
@@ -2852,8 +2853,12 @@ dependencies = [
  "overtone-fs",
  "overtone-model",
  "quick-xml",
+ "rusqlite",
  "sysinfo",
+ "tempfile",
  "thiserror 2.0.21",
+ "unicode-normalization",
+ "uuid",
 ]
 
 [[package]]

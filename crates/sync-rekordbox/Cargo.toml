@@ -1,6 +1,6 @@
 [package]
 name = "overtone-sync-rekordbox"
-description = "Rekordbox XML export (written with quick-xml) and a running-app check"
+description = "Rekordbox XML export, guarded master.db My Tag sync, and a running-app check"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
@@ -10,8 +10,19 @@ license.workspace = true
 overtone-fs.workspace = true
 overtone-model.workspace = true
 quick-xml.workspace = true
+rusqlite.workspace = true
 sysinfo.workspace = true
+tempfile = { workspace = true, optional = true }
 thiserror.workspace = true
+unicode-normalization.workspace = true
+uuid.workspace = true
+
+[features]
+# Encrypted master.db stand-ins for other crates' tests.
+fixture = ["dep:tempfile"]
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [lints]
 workspace = true

@@ -119,3 +119,20 @@ Use a throwaway Traktor setup: a spare macOS user account, or back up `~/Documen
 - [ ] Syncing again with no vibe changes reports "Already up to date" and doesn't touch the file. Changing a vibe and syncing again updates the folder in place, and Traktor keeps it in the same spot.
 - [ ] After Traktor quits and rewrites `collection.nml`, a dry run reports "Up to date" (Traktor kept Overtone's layout and UUIDs). If it reports a change, record how Traktor rewrote the folder.
 - [ ] Each changed sync leaves a copy under `~/Library/Application Support/com.jacksonferguson.overtone/backups/traktor/`, and restoring that copy restores the old collection.
+
+## Rekordbox My Tags (master.db)
+
+This writes Rekordbox's live database, so do it on a throwaway setup: a spare macOS user account with its own Rekordbox library, or first copy all of `~/Library/Pioneer/rekordbox/` somewhere safe yourself. Debug builds refuse to write under `~/Library/Pioneer` (protected roots), so use a release build (`cargo build --release -p overtone-cli`) for the real-path checks. Try `--db` against a copy first: `cp -c ~/Library/Pioneer/rekordbox/master.db* /tmp/overtone-rb/` with Rekordbox closed, then `ot sync rekordbox-tags --db /tmp/overtone-rb/master.db`.
+
+- [ ] With Rekordbox and `rekordboxAgent` quit, `ot sync rekordbox-tags --dry-run` lists the vibes as tags to create, and `ot sync rekordbox-tags` reports a backup folder under `backups/rekordbox-db/` holding `master.db`, `master.db-wal` and `master.db-shm` (when present), and `masterPlaylists6.xml`.
+- [ ] Rekordbox opens normally afterwards: no "database is damaged" prompt, no forced reimport, and the collection, playlists, hot cues, beatgrids, and history look the same.
+- [ ] The My Tag panel shows a fifth column named `Overtone` after Genre, Components, Situation, and the fourth column, with one tag per vibe named like `Dubs/Deep`. Check whether Rekordbox shows more than four My Tag columns at all, and where it puts the `Overtone` one (the category's `Seq` is 5).
+- [ ] Tracks carry the right Overtone tags in the My Tag panel, in the track list's My Tag column, and in the Comment's `/* tag */` block if you have "Add My Tag to Comments" turned on. Note whether Rekordbox rewrites that Comment block for tagged tracks without being asked.
+- [ ] Your own My Tags and their assignments in Genre, Components, Situation, and the fourth column are unchanged.
+- [ ] Renaming a vibe and syncing again (with Rekordbox closed) replaces the old tag with the new one in Rekordbox, and the old tag's tracks lose it.
+- [ ] Edit My Tags in Rekordbox (add a tag of your own in Genre, tag a track), quit, sync again: your edits survive. This proves changes Rekordbox left in `master.db-wal` are carried over.
+- [ ] With Rekordbox open, the sync refuses with a message naming Rekordbox. After quitting Rekordbox, check whether `rekordboxAgent` keeps running (menu bar icon); if it does, the sync refuses naming `rekordboxAgent`. Confirm both process names match your install (`ps -axo comm | grep -i rekordbox`).
+- [ ] Filter by an Overtone My Tag in Rekordbox's My Tag filter and in an intelligent playlist rule: the right tracks appear.
+- [ ] If you use Rekordbox cloud library sync or a Rekordbox account, note whether the new tags sync to another device or get reverted. Overtone stamps each new row's `rb_local_usn` from `localUpdateCount` the way rbox does, leaves `usn` empty, and sets `rb_local_synced` to 0; whether Rekordbox's cloud sync picks that up is unverified.
+- [ ] Export to a USB stick from Rekordbox after a sync and check that CDJs or XDJs show the Overtone My Tags (if your players support My Tag browsing).
+- [ ] Restoring works: quit Rekordbox, delete `master.db-wal` and `master.db-shm`, copy the backup's files back into `~/Library/Pioneer/rekordbox/`, and Rekordbox opens with the pre-sync state.

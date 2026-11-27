@@ -1,5 +1,6 @@
 //! End-to-end checks of the CLI binary against a temporary library.
 
+use std::path::PathBuf;
 use std::process::Command;
 
 use tempfile::TempDir;
@@ -338,4 +339,92 @@ fn audit_review_spectrogram_and_comment_mirroring() {
     let (ok, show) = run_json(&dir, &["show", good_arg]);
     assert!(ok);
     assert_eq!(show["track"]["tags"]["comment"], serde_json::Value::Null);
+}
+
+#[test]
+fn rekordbox_tags_dry_run_then_sync_into_a_fixture_db() {
+    use overtone_sync_rekordbox::master_db::{MasterDb, fixture};
+
+    let dir = TempDir::new().expect("tempdir");
+    let music = dir.path().join("music");
+    std::fs::create_dir_all(&music).expect("mkdir");
+    let signal = overtone_testkit::Signal {
+        seconds: 0.2,
+        ..overtone_testkit::Signal::cd(20_000.0)
+    };
+    for name in ["a.flac", "b.flac"] {
+        overtone_testkit::write_fixture(
+            &music.join(name),
+            &signal,
+            overtone_testkit::Fixture::Flac { bits: 16 },
+        )
+        .expect("fixture");
+    }
+    let (ok, _) = run_json(&dir, &["scan", music.to_str().expect("utf8")]);
+    assert!(ok);
+    let (ok, tracks) = run_json(&dir, &["ls"]);
+    assert!(ok);
+    let paths: Vec<String> = tracks
+        .as_array()
+        .expect("tracks")
+        .iter()
+        .map(|t| t["path"].as_str().expect("path").to_string())
+        .collect();
+    assert_eq!(paths.len(), 2);
+    // Rekordbox knows only the first track. The paths are what the scan
+    // stored, so they match however the temporary folder resolves.
+    let db = fixture::create_live(&dir.path().join("Pioneer"), &[("11", &paths[0])]).expect("db");
+    let db_arg = db.to_str().expect("utf8");
+    for path in &paths {
+        let (ok, out) = run_json(&dir, &["vibe", "add", "Dubs/Deep", path]);
+        assert!(ok, "{out}");
+    }
+
+    let (ok, plan) = run_json(
+        &dir,
+        &["sync", "rekordbox-tags", "--dry-run", "--db", db_arg],
+    );
+    assert!(ok, "{plan}");
+    assert_eq!(plan["changed"], true);
+    assert_eq!(plan["create_category"], true);
+    assert_eq!(plan["added"], 1);
+    assert_eq!(plan["skipped_tracks"].as_array().expect("skipped").len(), 1);
+    assert!(
+        db.with_file_name("master.db-wal").exists(),
+        "a dry run only copies the database"
+    );
+
+    if overtone_sync_rekordbox::rekordbox_running()
+        || overtone_sync_rekordbox::rekordbox_agent_running()
+    {
+        eprintln!("Rekordbox is running here; skipping the write half of this test");
+        return;
+    }
+    let (ok, report) = run_json(&dir, &["sync", "rekordbox-tags", "--db", db_arg]);
+    assert!(ok, "{report}");
+    assert_eq!(report["changed"], true);
+    assert_eq!(
+        report["created_tags"],
+        serde_json::json!(["Dubs", "Dubs/Deep"])
+    );
+    let backup = PathBuf::from(report["backup_dir"].as_str().expect("backup"));
+    assert!(backup.starts_with(dir.path().join("data/backups/rekordbox-db")));
+    assert!(backup.join("master.db-wal").exists());
+    assert!(!db.with_file_name("master.db-wal").exists());
+
+    let copy_dir = TempDir::new().expect("tempdir");
+    let copy = copy_dir.path().join("master.db");
+    std::fs::copy(&db, &copy).expect("copy");
+    let opened = MasterDb::open(&copy).expect("open");
+    let names: Vec<String> = opened
+        .overtone_tags()
+        .expect("tags")
+        .into_iter()
+        .map(|t| t.name)
+        .collect();
+    assert_eq!(names, ["Dubs", "Dubs/Deep"]);
+
+    let (ok, again) = run_json(&dir, &["sync", "rekordbox-tags", "--db", db_arg]);
+    assert!(ok, "{again}");
+    assert_eq!(again["changed"], false);
 }

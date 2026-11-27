@@ -4,6 +4,7 @@ use clap::{Args, Subcommand};
 use overtone_core::CoreError;
 use overtone_core::fs::ProtectedRoots;
 use overtone_core::library::Library;
+use overtone_core::rekordbox_db::{self, RekordboxTagAction};
 use overtone_core::{sync, traktor};
 use overtone_sync_serato::{FileAction, SeratoSyncPlan};
 
@@ -17,6 +18,9 @@ pub enum SyncCommand {
     Rekordbox(RekordboxArgs),
     /// Write vibes as Traktor playlists under an "Overtone" folder in collection.nml.
     Traktor(TraktorArgs),
+    /// Write vibes as My Tags in an "Overtone" category of Rekordbox's master.db.
+    /// Rekordbox must be closed; master.db is backed up first.
+    RekordboxTags(RekordboxTagsArgs),
 }
 
 #[derive(Debug, Args)]
@@ -27,6 +31,16 @@ pub struct TraktorArgs {
     /// Sync this collection.nml instead of the one in ~/Documents/Native Instruments.
     #[arg(long, value_name = "PATH")]
     collection: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+pub struct RekordboxTagsArgs {
+    /// Show what would change without writing anything.
+    #[arg(long)]
+    dry_run: bool,
+    /// Use this master.db instead of ~/Library/Pioneer/rekordbox/master.db.
+    #[arg(long, value_name = "PATH")]
+    db: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
@@ -54,6 +68,78 @@ pub fn run(library: &Library, command: &SyncCommand, out: &Output) -> Result<(),
         SyncCommand::Serato(args) => serato(library, args, out),
         SyncCommand::Rekordbox(args) => rekordbox(library, args, out),
         SyncCommand::Traktor(args) => traktor_sync(library, args, out),
+        SyncCommand::RekordboxTags(args) => rekordbox_tags(library, args, out),
+    }
+}
+
+fn rekordbox_tags(
+    library: &Library,
+    args: &RekordboxTagsArgs,
+    out: &Output,
+) -> Result<(), CoreError> {
+    if args.dry_run {
+        let plan = rekordbox_db::plan_rekordbox_tags(library, args.db.as_deref())?;
+        out.emit(&plan, || {
+            println!("{}", plan.db_path.display());
+            if plan.create_category {
+                println!("  Would create the Overtone My Tag category.");
+            }
+            let changes: Vec<_> = plan
+                .tags
+                .iter()
+                .filter(|t| t.action != RekordboxTagAction::Unchanged)
+                .collect();
+            if changes.is_empty() {
+                println!("  Up to date.");
+            } else {
+                let mut t = table(&["My Tag", "Change", "Tracks"]);
+                for tag in changes {
+                    let change = match tag.action {
+                        RekordboxTagAction::Create => "create".to_string(),
+                        RekordboxTagAction::Update => format!("+{} / -{}", tag.added, tag.removed),
+                        RekordboxTagAction::Delete => "delete".to_string(),
+                        RekordboxTagAction::Unchanged => String::new(),
+                    };
+                    t.add_row(vec![tag.name.clone(), change, tag.track_count.to_string()]);
+                }
+                println!("{t}");
+            }
+            print_rekordbox_skipped(plan.skipped_tracks.len());
+            if plan.rekordbox_running || plan.agent_running {
+                println!("  Quit Rekordbox and rekordboxAgent before syncing.");
+            }
+            println!("Dry run: nothing was written.");
+        });
+        return Ok(());
+    }
+    let report =
+        rekordbox_db::apply_rekordbox_tags(library, args.db.as_deref(), ProtectedRoots::global())?;
+    out.emit(&report, || {
+        println!("{}", report.db_path.display());
+        if report.changed {
+            println!(
+                "  {} tag(s) created, {} deleted, {} track(s) added, {} removed.",
+                report.created_tags.len(),
+                report.deleted_tags.len(),
+                report.added,
+                report.removed
+            );
+        } else {
+            println!("  Already up to date.");
+        }
+        print_rekordbox_skipped(report.skipped_tracks.len());
+        if let Some(backup) = &report.backup_dir {
+            println!("  Backup of the replaced database: {}", backup.display());
+        }
+    });
+    Ok(())
+}
+
+fn print_rekordbox_skipped(count: usize) {
+    if count > 0 {
+        println!(
+            "  {count} track(s) aren't in Rekordbox's collection and were skipped; import them in Rekordbox to tag them."
+        );
     }
 }
 
@@ -142,7 +228,7 @@ fn rekordbox(library: &Library, args: &RekordboxArgs, out: &Output) -> Result<()
     Ok(())
 }
 
-fn print_skipped(skipped: &[traktor::TraktorSkippedTrack]) {
+fn print_traktor_skipped(skipped: &[traktor::TraktorSkippedTrack]) {
     if skipped.is_empty() {
         return;
     }
@@ -185,7 +271,7 @@ fn traktor_sync(library: &Library, args: &TraktorArgs, out: &Output) -> Result<(
                 }
                 println!("{t}");
             }
-            print_skipped(&plan.skipped_tracks);
+            print_traktor_skipped(&plan.skipped_tracks);
             println!("Dry run: nothing was written.");
         });
         return Ok(());
@@ -210,7 +296,7 @@ fn traktor_sync(library: &Library, args: &TraktorArgs, out: &Output) -> Result<(
         if let Some(backup) = &report.backup_path {
             println!("  Backup of the previous collection: {}", backup.display());
         }
-        print_skipped(&report.skipped_tracks);
+        print_traktor_skipped(&report.skipped_tracks);
         println!("Open Traktor to see the playlists in the Overtone folder.");
     });
     Ok(())

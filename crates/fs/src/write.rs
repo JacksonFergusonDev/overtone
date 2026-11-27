@@ -110,6 +110,29 @@ pub fn backup_file(
     Ok(dest)
 }
 
+/// Copies every file in `sources` into one new timestamped folder under
+/// `backups_dir`, keeping their names, and returns the folder. For files
+/// that only make sense together, such as a SQLite database and its `-wal`.
+/// Same cloning behavior as [`backup_file`].
+pub fn backup_files(
+    roots: &ProtectedRoots,
+    sources: &[&Path],
+    backups_dir: &Path,
+) -> Result<PathBuf, FsError> {
+    let folder =
+        unique_path(&backups_dir.join(timestamp_folder_name(std::time::SystemTime::now())));
+    roots.check(&folder)?;
+    std::fs::create_dir_all(&folder).map_err(|err| FsError::io(&folder, err))?;
+    for source in sources {
+        let name = source
+            .file_name()
+            .ok_or_else(|| FsError::io(source, std::io::Error::other("path has no file name")))?;
+        let dest = unique_path(&folder.join(name));
+        reflink_copy::reflink_or_copy(source, &dest).map_err(|err| FsError::io(source, err))?;
+    }
+    Ok(folder)
+}
+
 fn parent_dir(path: &Path) -> &Path {
     match path.parent() {
         Some(parent) if !parent.as_os_str().is_empty() => parent,
@@ -266,6 +289,35 @@ mod tests {
         assert_eq!(std::fs::read(&first).expect("read"), b"v1");
         assert_eq!(std::fs::read(&second).expect("read"), b"v2");
         assert!(first.starts_with(&backups));
+    }
+
+    #[test]
+    fn backs_up_several_files_into_one_folder() {
+        let dir = TempDir::new().expect("tempdir");
+        let db = dir.path().join("master.db");
+        let wal = dir.path().join("master.db-wal");
+        std::fs::write(&db, b"db").expect("seed");
+        std::fs::write(&wal, b"wal").expect("seed");
+        let backups = dir.path().join("backups");
+        let roots = ProtectedRoots::none();
+        let folder = backup_files(&roots, &[&db, &wal], &backups).expect("backup");
+        assert!(folder.starts_with(&backups));
+        assert_eq!(
+            std::fs::read(folder.join("master.db")).expect("read"),
+            b"db"
+        );
+        assert_eq!(
+            std::fs::read(folder.join("master.db-wal")).expect("read"),
+            b"wal"
+        );
+        let again = backup_files(&roots, &[&db], &backups).expect("backup again");
+        assert_ne!(folder, again);
+
+        let protected = ProtectedRoots::new([backups.clone()]);
+        assert!(matches!(
+            backup_files(&protected, &[&db], &backups),
+            Err(FsError::Protected { .. })
+        ));
     }
 
     #[test]

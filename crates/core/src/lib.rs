@@ -13,6 +13,7 @@ use thiserror::Error;
 use ts_rs::TS;
 
 pub mod audit;
+pub mod rekordbox_db;
 pub mod scan;
 pub mod sync;
 pub mod tags;
@@ -63,11 +64,19 @@ impl CoreError {
             Self::Library(LibraryError::SchemaTooNew { .. }) => "schema_too_new",
             Self::Library(_) => "library",
             Self::Serato(SeratoError::SeratoRunning)
-            | Self::Rekordbox(RekordboxError::AppRunning)
+            | Self::Rekordbox(RekordboxError::AppRunning | RekordboxError::AgentRunning)
             | Self::Traktor(TraktorError::AppRunning) => "dj_app_running",
             Self::Traktor(TraktorError::NoCollection(_) | TraktorError::SeveralCollections(_)) => {
                 "traktor_collection"
             }
+            Self::Rekordbox(RekordboxError::Stale(_)) => "rekordbox_db_changed",
+            Self::Rekordbox(
+                RekordboxError::Db(_)
+                | RekordboxError::NotMasterDb(_)
+                | RekordboxError::AmbiguousCategory(_)
+                | RekordboxError::Unsupported(_)
+                | RekordboxError::VerifyFailed(_),
+            ) => "rekordbox_db",
             Self::Serato(_) => "serato",
             Self::Rekordbox(_) => "rekordbox",
             Self::Traktor(_) => "traktor",
@@ -163,6 +172,18 @@ mod tests {
         assert_eq!(
             CoreError::from(TraktorError::SeveralCollections(Vec::new())).code(),
             "traktor_collection"
+        );
+        assert_eq!(
+            CoreError::from(RekordboxError::AgentRunning).code(),
+            "dj_app_running"
+        );
+        assert_eq!(
+            CoreError::from(RekordboxError::AmbiguousCategory(2)).code(),
+            "rekordbox_db"
+        );
+        assert_eq!(
+            CoreError::from(RekordboxError::Stale(PathBuf::from("master.db"))).code(),
+            "rekordbox_db_changed"
         );
     }
 }
