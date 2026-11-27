@@ -12,6 +12,8 @@ import type {
   SeratoSyncPlan,
   SeratoSyncReport,
   SyncRun,
+  TraktorSyncPlan,
+  TraktorSyncReport,
 } from "../lib/types";
 import { confirmAction } from "../store/confirm";
 import { reloadTracks } from "../store/library";
@@ -26,8 +28,8 @@ const APP_NAMES: Record<AppKey, string> = {
   traktor: "Traktor",
 };
 
-/** Apps Overtone syncs to and can detect. Traktor joins once its sync lands. */
-const MONITORED_APPS: AppKey[] = ["serato", "rekordbox"];
+/** Apps Overtone syncs to and can detect. */
+const MONITORED_APPS: AppKey[] = ["serato", "rekordbox", "traktor"];
 
 /** Shared frame for one sync destination. Add a card per target app. */
 export function SyncTargetCard({
@@ -613,6 +615,164 @@ export function RekordboxSection({
   );
 }
 
+/** Writes vibes as playlists into Traktor's collection.nml. */
+export function TraktorSection({
+  running,
+  onApplied,
+}: {
+  running: RunningApps | null;
+  onApplied: () => void;
+}) {
+  const [plan, setPlan] = useState<TraktorSyncPlan | null>(null);
+  const [report, setReport] = useState<TraktorSyncReport | null>(null);
+  const [busy, setBusy] = useState<"plan" | "apply" | null>(null);
+  const traktorRunning = running?.traktor ?? false;
+
+  const preview = async () => {
+    setBusy("plan");
+    try {
+      setPlan(await backend.planTraktorSync(null));
+      setReport(null);
+    } catch (error) {
+      notifyError(`Couldn't preview the Traktor sync: ${errorMessage(error)}`);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const apply = async () => {
+    if (!plan) return;
+    const ok = await confirmAction({
+      title: "Update Traktor's collection?",
+      body: `Overtone writes ${plan.playlists.length} playlists with ${plan.track_count} tracks into the Overtone folder of\n${plan.collection}\n\nNothing else in the collection changes, and the file is backed up first.`,
+      confirmLabel: "Apply",
+    });
+    if (!ok) return;
+    setBusy("apply");
+    try {
+      setReport(await backend.applyTraktorSync(null));
+      setPlan(null);
+      onApplied();
+    } catch (error) {
+      notifyError(`Traktor sync failed: ${errorMessage(error)}`);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <SyncTargetCard
+      title="Traktor"
+      app="traktor"
+      running={running}
+      runningNote="Traktor is running. Quit it before applying: Traktor rewrites its collection when it closes, which would undo the sync."
+      description="Each vibe becomes a playlist under an Overtone folder in Traktor's collection. Your own playlists stay as they are."
+      actions={
+        <>
+          <button
+            type="button"
+            className="btn"
+            disabled={busy !== null}
+            onClick={() => void preview()}
+          >
+            {busy === "plan" ? "Previewing…" : "Preview"}
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={
+              busy !== null || plan === null || !plan.changed || traktorRunning
+            }
+            title={
+              plan === null
+                ? "Preview the changes first"
+                : traktorRunning
+                  ? "Quit Traktor first"
+                  : undefined
+            }
+            onClick={() => void apply()}
+          >
+            {busy === "apply" ? "Applying…" : "Apply"}
+          </button>
+        </>
+      }
+    >
+      {plan && (
+        <div className="plan">
+          <h3 className="plan-title truncate" title={plan.collection}>
+            {plan.collection}
+          </h3>
+          <p className="dim num">
+            {plan.playlists.length} playlists, {plan.track_count} tracks ·{" "}
+            {!plan.changed
+              ? "already up to date"
+              : plan.has_existing_folder
+                ? "updates the Overtone folder"
+                : "adds an Overtone folder"}
+          </p>
+          {plan.playlists.length > 0 && (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Playlist</th>
+                  <th scope="col" className="num">
+                    Tracks
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {plan.playlists.map((playlist) => (
+                  <tr key={playlist.path.join("/")}>
+                    <td className="truncate" title={playlist.path.join(" / ")}>
+                      {playlist.path.join(" / ")}
+                    </td>
+                    <td className="num">{playlist.track_count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {plan.skipped_tracks.length > 0 && (
+            <details>
+              <summary>
+                {plan.skipped_tracks.length} tracks aren't in Traktor's
+                collection and are left out. Add them in Traktor, then sync
+                again.
+              </summary>
+              <ul className="mono small">
+                {plan.skipped_tracks.slice(0, 200).map((track) => (
+                  <li
+                    key={track.track_id}
+                    className="truncate"
+                    title={track.path}
+                  >
+                    {fileName(track.path)}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </div>
+      )}
+      {report && (
+        <div className="report" role="status">
+          <p>
+            {report.changed
+              ? `Wrote ${report.playlist_count} playlists with ${report.track_count} tracks to `
+              : "Nothing changed in "}
+            <span className="mono">{report.collection}</span>
+            {report.backup_path && (
+              <>
+                . Backup in <span className="mono">{report.backup_path}</span>
+              </>
+            )}
+          </p>
+        </div>
+      )}
+    </SyncTargetCard>
+  );
+}
+
 function SyncHistory({ runs }: { runs: SyncRun[] | null }) {
   return (
     <section className="card" aria-labelledby="sync-history">
@@ -692,6 +852,7 @@ export function SyncView() {
       </p>
       <SeratoSection running={running} onApplied={refresh} />
       <RekordboxSection running={running} onApplied={refresh} />
+      <TraktorSection running={running} onApplied={refresh} />
       <TagMirrorSection onApplied={refresh} />
       <SyncHistory runs={runs} />
     </div>

@@ -23,6 +23,7 @@ overtone-audio.workspace = true
 overtone-core.workspace = true
 overtone-sync-rekordbox.workspace = true
 overtone-sync-serato.workspace = true
+overtone-sync-traktor.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tauri = { version = "2", features = ["protocol-asset"] }

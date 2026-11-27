@@ -37,6 +37,8 @@ function createBackend(): Mocked<Backend> {
     applySeratoSync: vi.fn(),
     planRekordboxExport: vi.fn(),
     exportRekordboxXml: vi.fn(),
+    planTraktorSync: vi.fn(),
+    applyTraktorSync: vi.fn(),
     planTagMirror: vi.fn(async () => []),
     applyTagMirror: vi.fn(),
     restoreComments: vi.fn(),

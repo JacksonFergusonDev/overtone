@@ -51,6 +51,7 @@ Open **Sync** in the sidebar. The top of the view shows whether Serato, Rekordbo
 
 - **Serato:** choose **Preview** to see which crate files Overtone would create, update, or delete in each `_Serato_` folder, and any tracks skipped because they're on another drive. Quit Serato, then choose **Apply**. Overtone backs up each folder before writing.
 - **Rekordbox:** choose **Preview** to see the playlists Overtone would write to `rekordbox.xml`, then **Export**. You can export while Rekordbox is running. In Rekordbox, open Preferences > Advanced > Database and set **rekordbox xml > Imported Library** to the exported file, then import the Overtone playlists from the **rekordbox xml** section of the sidebar. Import again after each export.
+- **Traktor:** quit Traktor, then choose **Preview** to see the playlists Overtone would write to the `Overtone` folder in Traktor's collection, and any tagged tracks that aren't in Traktor yet (add them in Traktor, then sync again). Choose **Apply** to write them. Nothing else in the collection changes, and the file is backed up first.
 - **Comment tags:** optionally mirror vibes as hashtags, such as `#dubs/deep`, into each file's Comment tag for smart crates and CDJ screens. This writes to your audio files. **Preview** shows each Comment before and after. Only Overtone's own hashtags change. **Restore originals** writes back the Comment each file had before Overtone first changed it.
 
 The **History** list shows recent syncs and where their backups are.

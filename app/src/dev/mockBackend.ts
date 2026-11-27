@@ -20,6 +20,8 @@ import type {
   RekordboxExportPlan,
   RekordboxExportReport,
   SeratoSyncReport,
+  TraktorSyncPlan,
+  TraktorSyncReport,
   SpectrogramImage,
   SyncRun,
   Track,
@@ -160,6 +162,8 @@ interface Internal {
   synced: Map<number, number>;
   /** What the last mock Rekordbox export contained, or null before one. */
   rekordboxExported: string | null;
+  /** What the last mock Traktor sync contained, or null before one. */
+  traktorSynced: string | null;
   /** Original Comments recorded before the first tag mirror write. */
   snapshots: Map<number, string | null>;
   auditRunning: boolean;
@@ -315,6 +319,7 @@ function generate(): Internal {
     history: [],
     synced: new Map(),
     rekordboxExported: null,
+    traktorSynced: null,
     snapshots: new Map(),
     auditRunning: false,
     cancelAudit: false,
@@ -467,6 +472,32 @@ export function createMockBackend(): (
       playlists,
       changed: state.rekordboxExported !== rekordboxSignature(),
       exists,
+    };
+  };
+  const planTraktor = (collection: unknown): TraktorSyncPlan => {
+    const base = planRekordbox(null);
+    // Pretend every tenth tagged track hasn't been imported into Traktor.
+    const skipped = state.tracks
+      .filter(
+        (t) =>
+          t.vibes.length > 0 && t.missing_since === null && t.id % 10 === 0,
+      )
+      .map((t) => ({
+        track_id: t.id,
+        path: t.path,
+        reason: "not in Traktor's collection",
+      }));
+    return {
+      collection:
+        typeof collection === "string"
+          ? collection
+          : "/mock/Documents/Native Instruments/Traktor 4.1.0/collection.nml",
+      traktor_version: "20",
+      playlists: base.playlists,
+      track_count: base.track_count - skipped.length,
+      skipped_tracks: skipped,
+      changed: state.traktorSynced !== rekordboxSignature(),
+      has_existing_folder: state.traktorSynced !== null,
     };
   };
   const recordSync = (app: DjApp, target: string, summaryText: string) => {
@@ -700,6 +731,27 @@ export function createMockBackend(): (
       state.rekordboxExported = rekordboxSignature();
       recordSync("rekordbox", plan.path, `${plan.playlist_count} playlists`);
       return report;
+    },
+    plan_traktor_sync: ({ collection }) => planTraktor(collection),
+    apply_traktor_sync: ({ collection }): TraktorSyncReport => {
+      const plan = planTraktor(collection);
+      state.traktorSynced = rekordboxSignature();
+      if (plan.changed)
+        recordSync(
+          "traktor",
+          plan.collection,
+          `${plan.playlists.length} playlists`,
+        );
+      return {
+        collection: plan.collection,
+        playlist_count: plan.playlists.length,
+        track_count: plan.track_count,
+        skipped_tracks: plan.skipped_tracks,
+        changed: plan.changed,
+        backup_path: plan.changed
+          ? `/mock/backups/traktor/${Date.now()}/collection.nml`
+          : null,
+      };
     },
     plan_tag_mirror: ({ vibe }): CommentChange[] => {
       const scope =

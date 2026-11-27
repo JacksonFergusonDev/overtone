@@ -9,6 +9,8 @@ export type { QualityReport } from "../bindings/QualityReport";
 export type { QualityVerdict } from "../bindings/QualityVerdict";
 export type { RekordboxExportPlan } from "../bindings/RekordboxExportPlan";
 export type { RekordboxExportReport } from "../bindings/RekordboxExportReport";
+export type { TraktorSyncPlan } from "../bindings/TraktorSyncPlan";
+export type { TraktorSyncReport } from "../bindings/TraktorSyncReport";
 export type { ReviewStatus } from "../bindings/ReviewStatus";
 export type { RunningApps } from "../bindings/RunningApps";
 export type { ScanProgress } from "../bindings/ScanProgress";

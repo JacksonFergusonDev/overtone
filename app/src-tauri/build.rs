@@ -25,6 +25,8 @@ const COMMANDS: &[&str] = &[
     "apply_serato_sync",
     "plan_rekordbox_export",
     "export_rekordbox_xml",
+    "plan_traktor_sync",
+    "apply_traktor_sync",
     "plan_tag_mirror",
     "apply_tag_mirror",
     "restore_comments",

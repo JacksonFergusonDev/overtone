@@ -2743,6 +2743,7 @@ dependencies = [
  "overtone-core",
  "overtone-sync-rekordbox",
  "overtone-sync-serato",
+ "overtone-sync-traktor",
  "overtone-testkit",
  "serde",
  "serde_json",

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-apply-traktor-sync"
+description = "Enables the apply_traktor_sync command without any pre-configured scope."
+commands.allow = ["apply_traktor_sync"]
+
+[[permission]]
+identifier = "deny-apply-traktor-sync"
+description = "Denies the apply_traktor_sync command without any pre-configured scope."
+commands.deny = ["apply_traktor_sync"]

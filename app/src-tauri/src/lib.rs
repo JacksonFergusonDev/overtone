@@ -43,6 +43,8 @@ fn builder<R: tauri::Runtime>() -> tauri::Builder<R> {
         sync::apply_serato_sync,
         sync::plan_rekordbox_export,
         sync::export_rekordbox_xml,
+        sync::plan_traktor_sync,
+        sync::apply_traktor_sync,
         sync::sync_history,
         tags::plan_tag_mirror,
         tags::apply_tag_mirror,

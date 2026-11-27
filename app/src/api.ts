@@ -17,6 +17,8 @@ import type { SeratoSyncReport } from "./bindings/SeratoSyncReport";
 import type { SpectrogramImage } from "./bindings/SpectrogramImage";
 import type { SyncRun } from "./bindings/SyncRun";
 import type { Track } from "./bindings/Track";
+import type { TraktorSyncPlan } from "./bindings/TraktorSyncPlan";
+import type { TraktorSyncReport } from "./bindings/TraktorSyncReport";
 import type { TrackId } from "./bindings/TrackId";
 import type { Vibe } from "./bindings/Vibe";
 import type { VibeId } from "./bindings/VibeId";
@@ -42,6 +44,8 @@ export type {
   SyncRun,
   Track,
   TrackId,
+  TraktorSyncPlan,
+  TraktorSyncReport,
   Vibe,
   VibeId,
   WaveformPeaks,
@@ -60,6 +64,8 @@ export type { SeratoFileAction } from "./bindings/SeratoFileAction";
 export type { SeratoFolderReport } from "./bindings/SeratoFolderReport";
 export type { SyncStatus } from "./bindings/SyncStatus";
 export type { TrackTags } from "./bindings/TrackTags";
+export type { TraktorPlaylistSummary } from "./bindings/TraktorPlaylistSummary";
+export type { TraktorSkippedTrack } from "./bindings/TraktorSkippedTrack";
 export type { VerdictCounts } from "./bindings/VerdictCounts";
 export type { VibePath } from "./bindings/VibePath";
 
@@ -223,6 +229,11 @@ export const commands = {
     invoke<RekordboxExportPlan>("plan_rekordbox_export", { path }),
   exportRekordboxXml: (path: string | null) =>
     invoke<RekordboxExportReport>("export_rekordbox_xml", { path }),
+  /** `null` uses the only `collection.nml` Traktor has. */
+  planTraktorSync: (collection: string | null) =>
+    invoke<TraktorSyncPlan>("plan_traktor_sync", { collection }),
+  applyTraktorSync: (collection: string | null) =>
+    invoke<TraktorSyncReport>("apply_traktor_sync", { collection }),
   /** `vibe` limits the mirror to one vibe; `null` covers every track. */
   planTagMirror: (vibe: string | null) =>
     invoke<CommentChange[]>("plan_tag_mirror", { vibe }),

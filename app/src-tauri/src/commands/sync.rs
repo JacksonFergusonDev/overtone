@@ -5,6 +5,7 @@ use std::path::Path;
 use overtone_core::fs::ProtectedRoots;
 use overtone_core::library::SyncRun;
 use overtone_core::sync::{self, RekordboxExportPlan, RekordboxExportReport, SeratoSyncReport};
+use overtone_core::traktor::{self as traktor_sync, TraktorSyncPlan, TraktorSyncReport};
 use overtone_sync_serato::SeratoSyncPlan;
 use tauri::State;
 
@@ -16,8 +17,7 @@ pub fn running_apps() -> RunningApps {
     RunningApps {
         serato: overtone_sync_serato::serato_running(),
         rekordbox: overtone_sync_rekordbox::rekordbox_running(),
-        // TODO: detect Traktor once its sync lands.
-        traktor: false,
+        traktor: overtone_sync_traktor::traktor_running(),
     }
 }
 
@@ -53,6 +53,21 @@ pub fn export_rekordbox(
     roots: &ProtectedRoots,
 ) -> Result<RekordboxExportReport, CommandError> {
     state.with_library(|library| sync::export_rekordbox_xml(library, path, roots))
+}
+
+pub fn plan_traktor(
+    state: &AppState,
+    collection: Option<&Path>,
+) -> Result<TraktorSyncPlan, CommandError> {
+    state.with_library(|library| traktor_sync::plan_traktor_sync(library, collection))
+}
+
+pub fn apply_traktor(
+    state: &AppState,
+    collection: Option<&Path>,
+    roots: &ProtectedRoots,
+) -> Result<TraktorSyncReport, CommandError> {
+    state.with_library(|library| traktor_sync::apply_traktor_sync(library, collection, roots))
 }
 
 pub fn history(state: &AppState, limit: u32) -> Result<Vec<SyncRun>, CommandError> {
@@ -101,6 +116,27 @@ pub fn export_rekordbox_xml(
     export_rekordbox(
         &state,
         path.as_deref().map(Path::new),
+        ProtectedRoots::global(),
+    )
+}
+
+/// `collection` defaults to the only `collection.nml` Traktor has.
+#[tauri::command(async)]
+pub fn plan_traktor_sync(
+    state: State<'_, AppState>,
+    collection: Option<String>,
+) -> Result<TraktorSyncPlan, CommandError> {
+    plan_traktor(&state, collection.as_deref().map(Path::new))
+}
+
+#[tauri::command(async)]
+pub fn apply_traktor_sync(
+    state: State<'_, AppState>,
+    collection: Option<String>,
+) -> Result<TraktorSyncReport, CommandError> {
+    apply_traktor(
+        &state,
+        collection.as_deref().map(Path::new),
         ProtectedRoots::global(),
     )
 }

@@ -164,4 +164,69 @@ describe("Sync view", () => {
     ).toBeInTheDocument();
     expect(backend.exportRekordboxXml).toHaveBeenCalledWith(null);
   });
+
+  const TRAKTOR_PLAN = {
+    collection: "/Docs/Traktor 4.1.0/collection.nml",
+    traktor_version: "20",
+    playlists: [{ path: ["Warmup"], track_count: 2 }],
+    track_count: 2,
+    skipped_tracks: [
+      {
+        track_id: 9,
+        path: "/music/New One.flac",
+        reason: "not in Traktor's collection",
+      },
+    ],
+    changed: true,
+    has_existing_folder: false,
+  };
+
+  it("lists Traktor tracks left out and blocks Apply while Traktor runs", async () => {
+    backend.planTraktorSync.mockResolvedValue(TRAKTOR_PLAN);
+    const { user } = await openSync({
+      serato: false,
+      rekordbox: false,
+      traktor: true,
+    });
+    const traktor = card("Traktor");
+    expect(within(traktor).getByText(/Traktor is running/)).toBeInTheDocument();
+    await user.click(within(traktor).getByRole("button", { name: "Preview" }));
+    expect(
+      await within(traktor).findByText(
+        /1 tracks aren't in Traktor's collection/,
+      ),
+    ).toBeInTheDocument();
+    expect(within(traktor).getByText("New One.flac")).toBeInTheDocument();
+    expect(
+      within(traktor).getByText(/adds an Overtone folder/),
+    ).toBeInTheDocument();
+    expect(
+      within(traktor).getByRole("button", { name: "Apply" }),
+    ).toBeDisabled();
+  });
+
+  it("applies the Traktor sync after confirming", async () => {
+    backend.planTraktorSync.mockResolvedValue(TRAKTOR_PLAN);
+    backend.applyTraktorSync.mockResolvedValue({
+      collection: TRAKTOR_PLAN.collection,
+      playlist_count: 1,
+      track_count: 2,
+      skipped_tracks: TRAKTOR_PLAN.skipped_tracks,
+      changed: true,
+      backup_path: "/backups/traktor/1/collection.nml",
+    });
+    const { user } = await openSync();
+    const traktor = card("Traktor");
+    await user.click(within(traktor).getByRole("button", { name: "Preview" }));
+    await within(traktor).findByText("Warmup");
+    await user.click(within(traktor).getByRole("button", { name: "Apply" }));
+    const dialog = screen.getByRole("alertdialog", {
+      name: "Update Traktor's collection?",
+    });
+    await user.click(within(dialog).getByRole("button", { name: "Apply" }));
+    expect(
+      await within(traktor).findByText("/backups/traktor/1/collection.nml"),
+    ).toBeInTheDocument();
+    expect(backend.applyTraktorSync).toHaveBeenCalledWith(null);
+  });
 });
