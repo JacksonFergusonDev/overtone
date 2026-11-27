@@ -12,6 +12,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use ts_rs::TS;
 
+pub mod scan;
+
 pub use overtone_fs as fs;
 pub use overtone_library as library;
 pub use overtone_model as model;
