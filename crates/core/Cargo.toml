@@ -14,9 +14,11 @@ overtone-model.workspace = true
 overtone-sync-rekordbox.workspace = true
 overtone-sync-serato.workspace = true
 overtone-sync-traktor.workspace = true
+rayon.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 ts-rs.workspace = true
+walkdir.workspace = true
 
 [dev-dependencies]
 overtone-testkit.workspace = true
