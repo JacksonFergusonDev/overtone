@@ -16,3 +16,4 @@
 - [Manual verification checklist](manual-verification.md)
 - [Implementation roadmap](plans/implementation-roadmap.md)
 - [Desktop UI plan](plans/desktop-ui.md)
+- [Phase 6 plan: metadata provenance, lookup, ffmpeg, and format conversion](plans/metadata-and-conversion.md)

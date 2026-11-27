@@ -47,3 +47,16 @@ Goal: add seamless native database syncing for Rekordbox 6/7 and Traktor Pro 3/4
 - **`crates/sync-rekordbox`:** enable `rbox`'s `master-db` feature behind process-closed detection (`rekordbox` not running), automatic `master.db` + WAL/SHM backups, and verified macOS SQLCipher build configuration.
 - **`crates/sync-traktor`:** implement the `quick-xml` streaming `Reader` -> `Writer` passthrough patcher for `collection.nml` (Traktor Pro 3 and 4, `/:` path encoding, nested `<NODE>` playlist folders, preserving all unmodeled TP3/TP4 attributes, `<GRID>`, `<STEMS>`, and multiline `KEY_LYRICS`), with Traktor-closed checks, backups, and atomic writes.
 - **Optional follow-ups:** read-only Serato DJ 4.x `master.sqlite` import, embedded Serato/Rekordbox cue/beatgrid inspection, and Homebrew/GitHub release automation.
+
+## Phase 6: Metadata provenance and lookup, ffmpeg, and format conversion
+
+Goal: fetch factual metadata without diluting what the DJ entered by hand, broaden decoding and analysis with a bundled ffmpeg, and convert lossless files to FLAC without losing tags, Serato data, or DJ app references. The build order, research, and open questions are in the [Phase 6 plan](metadata-and-conversion.md).
+
+1. Surgical ID3v2 COMM patcher so refused Comment writes succeed.
+2. Per-field metadata provenance (`file`, `user`, `lookup:<provider>`) with a suggestion flow.
+3. ffmpeg foundation: bundled audio-only binary run as a child process, a shared wrapper crate, and a decision doc.
+4. ffmpeg fallback decoder (HE-AAC, Opus, WMA) and integrity check in the audit.
+5. Metadata lookup: MusicBrainz and Discogs with matching logic ported from OneTagger, then AcoustID fingerprinting.
+6. Loudness, true peak, and leading-silence reports.
+7. Export copies: downsampled and lossy (AAC, MP3) new files.
+8. Lossless conversion: verified audio, tags, and Serato tag translation (8a), then relocation in each DJ app (8b).
