@@ -78,3 +78,13 @@ Use a throwaway Rekordbox library (a spare macOS user account, or back up Rekord
 - [ ] Your own playlists outside the imported `Overtone` folder are unchanged.
 - [ ] The export succeeds while Rekordbox is running and the CLI says to re-import. Confirm the process check detects your install: `ot sync rekordbox --json` reports `"rekordbox_running": true` with Rekordbox open and `false` with it closed (the process name and bundle layout are unverified).
 - [ ] Replacing an existing file leaves a copy under `~/Library/Application Support/com.jacksonferguson.overtone/backups/rekordbox/`.
+
+## Desktop app commands
+
+Run the desktop app against a copy of your library under `local/` (see AGENTS.md), not real data.
+
+- [ ] After adding a folder in the app, audio from that folder plays without restarting (the asset-protocol scope widens in `add_root`).
+- [ ] Audio outside library folders can't be loaded by the webview.
+- [ ] A removed folder's audio stays playable until the app restarts (Tauri can't narrow the scope again). Confirm that's acceptable.
+- [ ] A full audit can be cancelled from the UI; finished tracks keep their reports and a second audit starts afterwards.
+- [ ] Spectrogram PNGs appear under `~/Library/Caches/com.jacksonferguson.overtone/spectrograms/` and are replaced when the audio file changes.

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-restore-comments"
+description = "Enables the restore_comments command without any pre-configured scope."
+commands.allow = ["restore_comments"]
+
+[[permission]]
+identifier = "deny-restore-comments"
+description = "Denies the restore_comments command without any pre-configured scope."
+commands.deny = ["restore_comments"]

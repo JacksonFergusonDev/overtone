@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-apply-tag-mirror"
+description = "Enables the apply_tag_mirror command without any pre-configured scope."
+commands.allow = ["apply_tag_mirror"]
+
+[[permission]]
+identifier = "deny-apply-tag-mirror"
+description = "Denies the apply_tag_mirror command without any pre-configured scope."
+commands.deny = ["apply_tag_mirror"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-unassign-vibe"
+description = "Enables the unassign_vibe command without any pre-configured scope."
+commands.allow = ["unassign_vibe"]
+
+[[permission]]
+identifier = "deny-unassign-vibe"
+description = "Denies the unassign_vibe command without any pre-configured scope."
+commands.deny = ["unassign_vibe"]

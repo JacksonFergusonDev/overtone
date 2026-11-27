@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-assign-vibe"
+description = "Enables the assign_vibe command without any pre-configured scope."
+commands.allow = ["assign_vibe"]
+
+[[permission]]
+identifier = "deny-assign-vibe"
+description = "Denies the assign_vibe command without any pre-configured scope."
+commands.deny = ["assign_vibe"]

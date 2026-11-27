@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-apply-serato-sync"
+description = "Enables the apply_serato_sync command without any pre-configured scope."
+commands.allow = ["apply_serato_sync"]
+
+[[permission]]
+identifier = "deny-apply-serato-sync"
+description = "Denies the apply_serato_sync command without any pre-configured scope."
+commands.deny = ["apply_serato_sync"]

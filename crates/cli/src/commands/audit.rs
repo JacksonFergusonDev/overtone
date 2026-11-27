@@ -59,6 +59,7 @@ pub fn audit(library: &mut Library, args: &AuditArgs, out: &Output) -> Result<()
     };
     let options = AuditOptions {
         threads: args.threads.max(1),
+        ..AuditOptions::default()
     };
     let report = audit::audit_tracks_with(library, &ids, options, &on_progress)?;
     if let Ok(bar) = bar.lock() {

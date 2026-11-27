@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-rename-vibe"
+description = "Enables the rename_vibe command without any pre-configured scope."
+commands.allow = ["rename_vibe"]
+
+[[permission]]
+identifier = "deny-rename-vibe"
+description = "Denies the rename_vibe command without any pre-configured scope."
+commands.deny = ["rename_vibe"]
