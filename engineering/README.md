@@ -13,4 +13,6 @@
 
 ## Plans
 
+- [Manual verification checklist](manual-verification.md)
+
 - [Implementation roadmap](plans/implementation-roadmap.md)

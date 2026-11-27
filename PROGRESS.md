@@ -15,16 +15,15 @@ The maintainer handoff: where things stand, what's open, and what's next. Update
 
 ## Unresolved
 
-- **Needs testing in real DJ apps (manual, by the maintainer):**
-  - Serato DJ 4 picks up Overtone-written crates and keeps them across launches. Serato 4's `master.sqlite` tracks `.crate` size and MD5, so test on a throwaway library first.
-  - After `tag mirror --write`, cues, loops, beatgrids, and overviews are intact in Serato, Rekordbox (after Reload Tag), and Traktor (after Import Metadata), for ID3v2.3 and v2.4 MP3, FLAC, WAV, and AIFF.
-  - Listen to the 15 suspects found in `local/` (13 "320 kbps" MP3s that look like 128k sources, plus one FLAC and one WAV with a 15.8 kHz ceiling).
+- **Manual checks pending:** real DJ app behavior (Serato DJ 4 accepting written crates, cues surviving Comment writes) and listening to the 15 flagged suspects. All of them are in the [manual verification checklist](engineering/manual-verification.md).
 - **Detection limits:** LAME V0 and 256k AAC transcodes can't be detected from the spectrum alone; an MDCT/frame-alignment detector would be needed. HE-AAC files can't be decoded by symphonia and are recorded as Unchecked.
 - **Tag write refusals:** about 6% of MP3 and some FLAC and WAV files are refused because lofty would normalize or drop frames. A surgical ID3v2 COMM patcher would make most of them writable.
 - DJ app running detection uses `sysinfo` path matching for Serato. Rekordbox and Traktor bundle IDs still need confirming against installed apps.
 - `rbox` (`0.3.1`) macOS SQLCipher build flags need verification when Phase 5 (`master.db` write support) begins.
 
 ## Next
+
+How the work runs: before each feature, a research subagent surveys crates; contested choices get spikes and benchmarks on the M3 (recorded in `engineering/decisions/`). Implementation packages run in parallel git worktrees under `.claude/worktrees/` with written contracts (owned files, API, tests, spikes), Opus for risky or subtle work and Sonnet for well-specified work. The main session reviews each diff, merges with `--no-ff`, integrates into core and the CLI, verifies against `local/`, and adds manual checks to the checklist.
 
 1. Phase 3 rest: Rekordbox `rekordbox.xml` export via `rbox-xml`, sharing the core `desired_crates` mapping.
 2. Phase 4: the desktop UI (library table with virtualization, waveform scrubber and webview playback, spectrogram inspector with review actions, keyboard-first vibe tagging, sync panel with dry-run diffs). Tauri commands wrap the existing core functions; the ts-rs bindings already cover the IPC types.
