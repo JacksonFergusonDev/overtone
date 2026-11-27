@@ -111,3 +111,25 @@ fn roots_and_ls_on_an_empty_library() {
     assert!(ok);
     assert_eq!(tracks, serde_json::json!([]));
 }
+
+#[test]
+fn serato_dry_run_writes_nothing_and_sync_writes_crates() {
+    let dir = TempDir::new().expect("tempdir");
+    let serato = dir.path().join("_Serato_");
+    let serato_arg = serato.to_str().expect("utf8");
+    let (ok, _) = run_json(&dir, &["vibe", "create", "Dubs/Deep"]);
+    assert!(ok);
+
+    let (ok, plans) = run_json(
+        &dir,
+        &["sync", "serato", "--dry-run", "--serato-dir", serato_arg],
+    );
+    assert!(ok, "{plans}");
+    assert_eq!(plans.as_array().expect("plans").len(), 1);
+    assert!(!serato.exists());
+
+    let (ok, report) = run_json(&dir, &["sync", "serato", "--serato-dir", serato_arg]);
+    assert!(ok, "{report}");
+    assert!(serato.join("Subcrates/Overtone%%Dubs%%Deep.crate").exists());
+    assert!(serato.join("Subcrates/Overtone.crate").exists());
+}

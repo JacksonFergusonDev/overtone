@@ -334,3 +334,28 @@ fn plan_serializes_without_file_contents() {
     assert_eq!(json["files"][1]["action"]["action"], "create");
     assert!(json["files"][1].get("new_bytes").is_none());
 }
+
+#[test]
+fn a_target_outside_volumes_takes_startup_disk_tracks() {
+    let home = std::path::Path::new("/Users/dj");
+    let target = std::path::Path::new("/Users/dj/Developer/overtone/local/serato/_Serato_");
+    let desired = [DesiredCrate {
+        segments: vec!["Dubs".to_owned()],
+        tracks: vec![
+            std::path::PathBuf::from("/Users/dj/Music/a.flac"),
+            std::path::PathBuf::from("/Volumes/USB/Music/b.flac"),
+        ],
+    }];
+    let plan = plan_sync(target, home, DEFAULT_ROOT_CRATE, &desired).expect("plan");
+    assert_eq!(
+        plan.skipped_tracks.len(),
+        1,
+        "external-volume track skipped"
+    );
+    let dubs = plan
+        .files
+        .iter()
+        .find(|f| f.filename == "Overtone%%Dubs.crate")
+        .expect("dubs crate");
+    assert_eq!(dubs.track_count, 1);
+}

@@ -48,7 +48,10 @@ pub fn serato_dir_for(path: &Path, home: &Path) -> (PathBuf, String) {
 /// Inverse of [`serato_dir_for`]: the absolute path a `ptrk` refers to when
 /// read from `serato_dir`.
 pub fn absolute_path_for(serato_dir: &Path, ptrk: &str, home: &Path) -> PathBuf {
-    if serato_dir == home.join("Music").join(SERATO_DIR_NAME) {
+    let on_volume = serato_dir
+        .strip_prefix(VOLUMES)
+        .is_ok_and(|rest| rest.components().count() == 2);
+    if serato_dir == home.join("Music").join(SERATO_DIR_NAME) || !on_volume {
         return Path::new("/").join(ptrk);
     }
     serato_dir

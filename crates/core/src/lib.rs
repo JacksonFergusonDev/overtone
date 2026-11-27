@@ -13,6 +13,7 @@ use thiserror::Error;
 use ts_rs::TS;
 
 pub mod scan;
+pub mod sync;
 
 pub use overtone_fs as fs;
 pub use overtone_library as library;
@@ -43,7 +44,8 @@ impl CoreError {
     pub fn code(&self) -> &'static str {
         match self {
             Self::Audio(_) => "audio",
-            Self::Fs(FsError::Protected { .. }) => "protected_path",
+            Self::Fs(FsError::Protected { .. })
+            | Self::Serato(SeratoError::Fs(FsError::Protected { .. })) => "protected_path",
             Self::Fs(_) => "io",
             Self::Library(LibraryError::NotFound { .. } | LibraryError::NotFoundByName { .. }) => {
                 "not_found"
@@ -52,9 +54,10 @@ impl CoreError {
             Self::Library(LibraryError::VibeExists(_)) => "vibe_exists",
             Self::Library(LibraryError::SchemaTooNew { .. }) => "schema_too_new",
             Self::Library(_) => "library",
-            Self::Serato(_) => "serato",
-            Self::Rekordbox(RekordboxError::AppRunning)
+            Self::Serato(SeratoError::SeratoRunning)
+            | Self::Rekordbox(RekordboxError::AppRunning)
             | Self::Traktor(TraktorError::AppRunning) => "dj_app_running",
+            Self::Serato(_) => "serato",
             Self::Rekordbox(_) => "rekordbox",
             Self::Traktor(_) => "traktor",
             Self::NoDataDir => "no_data_dir",
@@ -136,5 +139,9 @@ mod tests {
         let err = CoreError::from(LibraryError::VibeExists("Dubs".into()));
         assert_eq!(err.code(), "vibe_exists");
         assert_eq!(CoreError::NoDataDir.code(), "no_data_dir");
+        assert_eq!(
+            CoreError::from(SeratoError::SeratoRunning).code(),
+            "dj_app_running"
+        );
     }
 }

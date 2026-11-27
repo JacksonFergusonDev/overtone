@@ -24,6 +24,11 @@ pub fn default_library_path() -> Option<PathBuf> {
     app_data_dir().map(|dir| dir.join("library.sqlite"))
 }
 
+/// The user's home folder.
+pub fn home_dir() -> Option<PathBuf> {
+    dirs::home_dir()
+}
+
 /// Folder holding timestamped backups made before writing DJ files.
 pub fn backups_dir() -> Option<PathBuf> {
     app_data_dir().map(|dir| dir.join("backups"))

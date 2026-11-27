@@ -12,7 +12,7 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand};
 use overtone_core::CoreError;
 
-use crate::commands::{roots, tracks, vibes};
+use crate::commands::{roots, sync, tracks, vibes};
 use crate::output::Output;
 
 #[derive(Debug, Parser)]
@@ -48,6 +48,9 @@ enum Command {
     /// Create, rename, and assign vibes.
     #[command(subcommand)]
     Vibe(vibes::VibeCommand),
+    /// Sync vibes to DJ software. Close the DJ app first.
+    #[command(subcommand)]
+    Sync(sync::SyncCommand),
 }
 
 fn main() -> ExitCode {
@@ -83,5 +86,6 @@ fn run(cli: &Cli, out: &Output) -> Result<(), CoreError> {
         Command::Ls(args) => tracks::ls(&library, args, out),
         Command::Show(args) => tracks::show(&library, args, out),
         Command::Vibe(command) => vibes::run(&mut library, command, out),
+        Command::Sync(command) => sync::run(&library, command, out),
     }
 }

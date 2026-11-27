@@ -1,4 +1,5 @@
 pub mod roots;
+pub mod sync;
 pub mod tracks;
 pub mod vibes;
 

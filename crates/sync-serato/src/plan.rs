@@ -147,6 +147,20 @@ struct Existing {
 /// volume belong to `<home>/Music/_Serato_`, those under `/Volumes/<Name>`
 /// to that volume's own folder. Tracks that belong elsewhere are listed in
 /// [`SeratoSyncPlan::skipped_tracks`].
+/// Whether `dir` is the startup disk's default `_Serato_` folder.
+fn is_startup_disk_dir(dir: &Path, home: &Path) -> bool {
+    dir == home.join("Music").join(crate::paths::SERATO_DIR_NAME)
+}
+
+/// Whether `dir` is the `_Serato_` folder at the root of an external volume
+/// (`/Volumes/<Drive>/_Serato_`). Any other target folder, such as a copy
+/// used for testing, is treated as the startup disk's: its tracks use
+/// startup-disk paths, exactly as `~/Music/_Serato_` would store them.
+fn is_volume_dir(dir: &Path) -> bool {
+    dir.strip_prefix("/Volumes")
+        .is_ok_and(|rest| rest.components().count() == 2)
+}
+
 pub fn plan_sync(
     serato_dir: &Path,
     home: &Path,
@@ -170,7 +184,8 @@ pub fn plan_sync(
         let mut ptrks = Vec::new();
         for track in &crate_spec.tracks {
             let (dir, ptrk) = serato_dir_for(track, home);
-            if dir == serato_dir {
+            if dir == serato_dir || (is_startup_disk_dir(&dir, home) && !is_volume_dir(serato_dir))
+            {
                 ptrks.push(ptrk);
             } else {
                 skipped.push(SkippedTrack {

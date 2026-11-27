@@ -15,6 +15,7 @@ overtone-sync-rekordbox.workspace = true
 overtone-sync-serato.workspace = true
 overtone-sync-traktor.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 ts-rs.workspace = true
 
