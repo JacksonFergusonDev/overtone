@@ -45,7 +45,9 @@ impl CoreError {
             Self::Audio(_) => "audio",
             Self::Fs(FsError::Protected { .. }) => "protected_path",
             Self::Fs(_) => "io",
-            Self::Library(LibraryError::NotFound { .. }) => "not_found",
+            Self::Library(LibraryError::NotFound { .. } | LibraryError::NotFoundByName { .. }) => {
+                "not_found"
+            }
             Self::Library(LibraryError::InvalidVibe(_)) => "invalid_vibe",
             Self::Library(LibraryError::VibeExists(_)) => "vibe_exists",
             Self::Library(LibraryError::SchemaTooNew { .. }) => "schema_too_new",

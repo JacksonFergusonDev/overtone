@@ -24,6 +24,8 @@ pub enum LibraryError {
     VibeExists(String),
     #[error("{kind} {id} not found")]
     NotFound { kind: &'static str, id: i64 },
+    #[error("no {kind} named {name:?}")]
+    NotFoundByName { kind: &'static str, name: String },
     #[error("unexpected value {value:?} in column {column}")]
     Corrupt { column: &'static str, value: String },
 }

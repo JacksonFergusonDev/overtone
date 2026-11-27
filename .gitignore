@@ -4,3 +4,4 @@
 /app/dist
 tests/fixtures/private/
 /local/
+/.claude/worktrees/
