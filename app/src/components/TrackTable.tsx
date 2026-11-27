@@ -176,6 +176,8 @@ export function TrackTable({ tableKey, ids, label }: TrackTableProps) {
   const fixedRect = useContext(TableRectContext);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
+  // The app doesn't use React Compiler; rows memoize themselves.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: ids.length,
     getScrollElement: () => scrollRef.current,

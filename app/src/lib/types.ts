@@ -7,6 +7,8 @@ export type { LibraryRoot } from "../bindings/LibraryRoot";
 export type { MirrorReport } from "../bindings/MirrorReport";
 export type { QualityReport } from "../bindings/QualityReport";
 export type { QualityVerdict } from "../bindings/QualityVerdict";
+export type { RekordboxExportPlan } from "../bindings/RekordboxExportPlan";
+export type { RekordboxExportReport } from "../bindings/RekordboxExportReport";
 export type { ReviewStatus } from "../bindings/ReviewStatus";
 export type { RunningApps } from "../bindings/RunningApps";
 export type { ScanProgress } from "../bindings/ScanProgress";

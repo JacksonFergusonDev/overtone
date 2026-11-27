@@ -10,9 +10,30 @@ import {
   dispatchSelection,
   openModal,
   rememberVibe,
+  setView,
+  showVibe,
   useUi,
   type TableKey,
+  type View,
 } from "./ui";
+
+/**
+ * Switches views. The library button also clears the vibe filter, and the
+ * review queue focuses its first track so the inspector has something to show.
+ */
+export function goTo(view: View): void {
+  if (view === "library") {
+    showVibe(null);
+    return;
+  }
+  setView(view);
+  if (view !== "review") return;
+  const ids = currentVisibleIds("review");
+  const cursor = useUi.getState().tables.review.selection.cursor;
+  if (ids.length > 0 && (cursor === null || !ids.includes(cursor))) {
+    dispatchSelection("review", { type: "select", id: ids[0] });
+  }
+}
 
 /** Selected tracks in the active table, in display order. */
 export function selectedTrackIds(

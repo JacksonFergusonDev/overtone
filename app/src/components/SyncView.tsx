@@ -5,6 +5,8 @@ import { fileName, formatDateTime } from "../lib/format";
 import type {
   CommentChange,
   MirrorReport,
+  RekordboxExportPlan,
+  RekordboxExportReport,
   RunningApps,
   SeratoFileAction,
   SeratoSyncPlan,
@@ -31,6 +33,7 @@ export function SyncTargetCard({
   running,
   description,
   actions,
+  runningNote,
   children,
 }: {
   title: string;
@@ -38,22 +41,25 @@ export function SyncTargetCard({
   running?: RunningApps | null;
   description: ReactNode;
   actions?: ReactNode;
+  /** Shown while `app` runs; defaults to asking you to quit it first. */
+  runningNote?: ReactNode;
   children?: ReactNode;
 }) {
   const isRunning = app && running ? running[app] : false;
+  const headingId = `sync-${title.toLowerCase().replace(/\W+/g, "-")}`;
   return (
-    <section className="card sync-card" aria-labelledby={`sync-${title}`}>
+    <section className="card sync-card" aria-labelledby={headingId}>
       <header className="card-header">
         <div>
-          <h2 id={`sync-${title}`}>{title}</h2>
+          <h2 id={headingId}>{title}</h2>
           <p className="dim">{description}</p>
         </div>
         <div className="card-actions">{actions}</div>
       </header>
       {isRunning && app && (
         <p className="banner banner-warn" role="note">
-          {APP_NAMES[app]} is running. Quit it before applying, so it doesn't
-          overwrite the changes.
+          {runningNote ??
+            `${APP_NAMES[app]} is running. Quit it before applying, so it doesn't overwrite the changes.`}
         </p>
       )}
       {children}
@@ -459,16 +465,147 @@ function TagMirrorSection({ onApplied }: { onApplied: () => void }) {
   );
 }
 
-/** Placeholder until Rekordbox XML export lands (Phase 3). */
-export function RekordboxSection({ running }: { running: RunningApps | null }) {
+/** Writes vibes as playlists into a rekordbox.xml that Rekordbox imports. */
+export function RekordboxSection({
+  running,
+  onApplied,
+}: {
+  running: RunningApps | null;
+  onApplied: () => void;
+}) {
+  const [plan, setPlan] = useState<RekordboxExportPlan | null>(null);
+  const [report, setReport] = useState<RekordboxExportReport | null>(null);
+  const [busy, setBusy] = useState<"plan" | "export" | null>(null);
+
+  const preview = async () => {
+    setBusy("plan");
+    try {
+      setPlan(await backend.planRekordboxExport(null));
+      setReport(null);
+    } catch (error) {
+      notifyError(
+        `Couldn't preview the Rekordbox export: ${errorMessage(error)}`,
+      );
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const exportXml = async () => {
+    if (!plan) return;
+    const ok = await confirmAction({
+      title: "Write rekordbox.xml?",
+      body: `Overtone writes ${plan.playlist_count} playlists with ${plan.track_count} tracks to\n${plan.path}${
+        plan.exists ? "\n\nThe current file is backed up first." : ""
+      }`,
+      confirmLabel: "Export",
+    });
+    if (!ok) return;
+    setBusy("export");
+    try {
+      setReport(await backend.exportRekordboxXml(null));
+      setPlan(null);
+      onApplied();
+    } catch (error) {
+      notifyError(`Rekordbox export failed: ${errorMessage(error)}`);
+    } finally {
+      setBusy(null);
+    }
+  };
+
   return (
     <SyncTargetCard
       title="Rekordbox"
       app="rekordbox"
       running={running}
-      description="Export vibes as playlists in a rekordbox.xml you import into Rekordbox."
+      runningNote="Rekordbox is running. You can still export; import the file again in Rekordbox afterwards to see the changes."
+      description="Each vibe becomes a playlist under an Overtone folder in a rekordbox.xml file that Rekordbox imports."
+      actions={
+        <>
+          <button
+            type="button"
+            className="btn"
+            disabled={busy !== null}
+            onClick={() => void preview()}
+          >
+            {busy === "plan" ? "Previewing…" : "Preview"}
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={busy !== null || plan === null || !plan.changed}
+            title={plan === null ? "Preview the export first" : undefined}
+            onClick={() => void exportXml()}
+          >
+            {busy === "export" ? "Exporting…" : "Export"}
+          </button>
+        </>
+      }
     >
-      <p className="dim">Coming soon.</p>
+      <p className="dim">
+        In Rekordbox, open Preferences &gt; Advanced &gt; Database and set
+        rekordbox xml &gt; Imported Library to this file, then import the
+        Overtone playlists from the rekordbox xml section of the sidebar. Import
+        again after each export.
+      </p>
+      {plan && (
+        <div className="plan">
+          <h3 className="plan-title truncate" title={plan.path}>
+            {plan.path}
+          </h3>
+          <p className="dim num">
+            {plan.playlist_count} playlists, {plan.track_count} tracks ·{" "}
+            {!plan.exists
+              ? "new file"
+              : plan.changed
+                ? "differs from the current file"
+                : "already up to date"}
+          </p>
+          {plan.playlists.length > 0 && (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Playlist</th>
+                  <th scope="col" className="num">
+                    Tracks
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {plan.playlists.map((playlist) => (
+                  <tr key={playlist.path.join("/")}>
+                    <td className="truncate" title={playlist.path.join(" / ")}>
+                      {playlist.path.join(" / ")}
+                    </td>
+                    <td className="num">{playlist.track_count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+      {report && (
+        <div className="report" role="status">
+          <p>
+            {report.changed
+              ? `Wrote ${report.playlist_count} playlists with ${report.track_count} tracks to `
+              : "Nothing changed in "}
+            <span className="mono">{report.path}</span>
+            {report.backup_path && (
+              <>
+                . Backup in <span className="mono">{report.backup_path}</span>
+              </>
+            )}
+          </p>
+          {report.changed && report.rekordbox_running && (
+            <p>
+              Rekordbox is running: import the file again to pick up the
+              changes.
+            </p>
+          )}
+        </div>
+      )}
     </SyncTargetCard>
   );
 }
@@ -551,7 +688,7 @@ export function SyncView() {
         file before it writes.
       </p>
       <SeratoSection running={running} onApplied={refresh} />
-      <RekordboxSection running={running} />
+      <RekordboxSection running={running} onApplied={refresh} />
       <TagMirrorSection onApplied={refresh} />
       <SyncHistory runs={runs} />
     </div>

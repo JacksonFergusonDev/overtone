@@ -1,48 +1,52 @@
-import { render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { invoke } from "@tauri-apps/api/core";
+import { render, screen, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
-import type { AppStatus } from "./api";
+import { backend, resetBackend } from "./test/backendMock";
+import { renderApp, resetStores } from "./test/render";
 
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
-  isTauri: vi.fn(() => false),
-}));
+vi.mock("./lib/backend", () => import("./test/backendMock"));
 
-afterEach(() => {
-  vi.clearAllMocks();
+beforeEach(() => {
+  resetBackend();
+  resetStores();
 });
 
-const STATUS: AppStatus = {
-  version: "0.1.0",
-  library_path: "/tmp/library.sqlite",
-  library: {
-    schema_version: 1,
-    track_count: 12,
-    missing_count: 0,
-    vibe_count: 4,
-    needs_review_count: 3,
-  },
-};
-
 describe("App", () => {
-  it("renders status returned by the backend", async () => {
-    vi.mocked(invoke).mockResolvedValueOnce(STATUS);
-    render(<App />);
-    expect(await screen.findByText("12")).toBeInTheDocument();
-    expect(screen.getByText("0.1.0")).toBeInTheDocument();
-    expect(screen.getByText("Needs review").nextSibling).toHaveTextContent("3");
-    expect(invoke).toHaveBeenCalledWith("app_status");
+  it("loads status, tracks, and vibes once, in parallel", async () => {
+    await renderApp();
+    expect(backend.appStatus).toHaveBeenCalledTimes(1);
+    expect(backend.listTracks).toHaveBeenCalledTimes(1);
+    expect(backend.listVibes).toHaveBeenCalledTimes(1);
+    const nav = screen.getByRole("navigation", { name: "Main" });
+    // Five fixture tracks; two flagged and unreviewed.
+    expect(
+      within(nav).getByRole("button", { name: /^Library\s*5$/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(nav).getByRole("button", { name: /^Needs review\s*2$/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(nav).getByRole("button", { name: /^Deep/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /Alpha/ })).toBeInTheDocument();
   });
 
-  it("shows the backend's error message", async () => {
-    vi.mocked(invoke).mockRejectedValueOnce({
+  it("shows the library path and version in Settings", async () => {
+    const { user } = await renderApp();
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    expect(await screen.findByText("0.1.0")).toBeInTheDocument();
+    expect(screen.getByText("/tmp/library.sqlite")).toBeInTheDocument();
+  });
+
+  it("shows a single full-window error when the library can't open", async () => {
+    backend.appStatus.mockRejectedValueOnce({
       code: "schema_too_new",
       message: "this library was created by a newer version of Overtone",
     });
     render(<App />);
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "created by a newer version",
-    );
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Couldn't open your library:");
+    expect(alert).toHaveTextContent("created by a newer version");
+    expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
   });
 });

@@ -16,7 +16,7 @@ import {
   vibeTree,
   vibeWithDescendants,
 } from "../lib/vibes";
-import { addVibeToTracks } from "../store/actions";
+import { addVibeToTracks, goTo } from "../store/actions";
 import { confirmAction } from "../store/confirm";
 import {
   createVibe,
@@ -26,7 +26,7 @@ import {
 } from "../store/library";
 import { useNeedsReviewCount, useVibeCounts } from "../store/selectors";
 import { notifyError } from "../store/toasts";
-import { setView, showVibe, useUi, type View } from "../store/ui";
+import { showVibe, useUi, type View } from "../store/ui";
 import { TRACK_DRAG_TYPE } from "./TrackTable";
 
 function NavItem({
@@ -50,7 +50,7 @@ function NavItem({
       type="button"
       className="nav-item"
       aria-current={current ? "page" : undefined}
-      onClick={() => (view === "library" ? showVibe(null) : setView(view))}
+      onClick={() => goTo(view)}
     >
       {icon}
       <span className="nav-label">{label}</span>

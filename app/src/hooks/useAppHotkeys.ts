@@ -1,15 +1,9 @@
 import { useEffect } from "react";
 import { useHotkeys, useHotkeysContext } from "react-hotkeys-hook";
 import { digitFraction } from "../lib/waveform";
-import { openPalette } from "../store/actions";
+import { goTo, openPalette } from "../store/actions";
 import { seekBy, seekFraction, skip, togglePlay } from "../store/player";
-import {
-  openModal,
-  setView,
-  toggleInspector,
-  useUi,
-  type Modal,
-} from "../store/ui";
+import { openModal, toggleInspector, useUi, type Modal } from "../store/ui";
 
 /** Scopes active when no modal is open. */
 export const BASE_SCOPES = ["global", "table", "inspector"];
@@ -68,8 +62,8 @@ export function useGlobalHotkeys(): void {
   });
   useHotkeys("i", () => toggleInspector(), global);
   useHotkeys("shift+slash", () => openModal("shortcuts"), global);
-  useHotkeys("mod+1", () => setView("library"), global);
-  useHotkeys("mod+2", () => setView("review"), global);
-  useHotkeys("mod+3", () => setView("sync"), global);
-  useHotkeys("mod+4", () => setView("settings"), global);
+  useHotkeys("mod+1", () => goTo("library"), global);
+  useHotkeys("mod+2", () => goTo("review"), global);
+  useHotkeys("mod+3", () => goTo("sync"), global);
+  useHotkeys("mod+4", () => goTo("settings"), global);
 }

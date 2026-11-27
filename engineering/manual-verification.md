@@ -88,3 +88,17 @@ Run the desktop app against a copy of your library under `local/` (see AGENTS.md
 - [ ] A removed folder's audio stays playable until the app restarts (Tauri can't narrow the scope again). Confirm that's acceptable.
 - [ ] A full audit can be cancelled from the UI; finished tracks keep their reports and a second audit starts afterwards.
 - [ ] Spectrogram PNGs appear under `~/Library/Caches/com.jacksonferguson.overtone/spectrograms/` and are replaced when the audio file changes.
+
+## Desktop app interface
+
+Check at the default window size (1280x860) and the minimum (840x560). See [Using the desktop app](../docs/desktop-app.md) for the shortcuts.
+
+- [ ] Scrolling the Library table with about 20,000 tracks stays smooth, and sorting or typing in the search field doesn't stall noticeably.
+- [ ] At 840x560 the table drops the Time, Key, and Format columns without overlapping text, and the inspector floats over the table instead of squeezing it.
+- [ ] The waveform is crisp on a Retina display, the played part is tinted, and click or drag seeks to the right spot by ear.
+- [ ] `Space`, `J`, `K`, arrow keys, and `1` to `9` control playback, and none of them fire while typing in the search field or the quick-tag palette.
+- [ ] `Space` on a focused button toggles playback without also clicking the button.
+- [ ] The spectrogram's frequency labels line up with the image, and the dashed cutoff line sits where the energy falls off, in both linear and log scales.
+- [ ] In Needs review, `O` and `R` advance to the next flagged track and playback follows. Judge whether that flow is fast enough for a real triage session.
+- [ ] Dragging selected rows onto a vibe in the sidebar tags them.
+- [ ] Focus rings are visible on every control, and text contrast is comfortable in a dark room.
