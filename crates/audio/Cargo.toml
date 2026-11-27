@@ -7,8 +7,16 @@ publish.workspace = true
 license.workspace = true
 
 [dependencies]
+lofty.workspace = true
+overtone-fs.workspace = true
 overtone-model.workspace = true
 thiserror.workspace = true
+xattr.workspace = true
+
+[dev-dependencies]
+overtone-testkit.workspace = true
+rayon.workspace = true
+tempfile.workspace = true
 
 [lints]
 workspace = true
