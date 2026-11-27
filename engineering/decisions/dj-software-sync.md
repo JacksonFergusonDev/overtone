@@ -31,6 +31,19 @@ Decided November 26, 2026. This records our evaluation of the Rust crate ecosyst
 - **Backup before overwrite:** snapshot any existing `.crate` files managed by Overtone before writing via temporary file + atomic rename.
 - **Deferred:** if Overtone later needs to edit Serato cues/loops/beatgrids inside audio files, either fork `triseratops` (patching issues `#42` to `#46`) or write targeted `GEOB` encoders over `lofty`.
 
+### Format notes from real crates (November 26, 2026)
+
+Checked against 140 real crates (10,228 tracks) from Serato DJ 4. These correct and extend the notes above.
+
+- **`osrt` and `ovct` are always written.** Serato puts a `vrsn` record, then one `osrt` (sort column `tvcn` and reverse flag `brev`), then 7 to 10 `ovct` column records (`tvcn` name, `tvcw` width as a decimal string), then the `otrk` tracks. 138 of 140 sampled crates have an `osrt`; new crates should include one. `CrateFile::new()` writes the eight standard columns with width `0` (automatic), as 105 of 140 crates do.
+- **`ptrk` is the on-disk Unicode form.** Serato stores the file name exactly as the file system returns it. 7 sampled paths are NFD-only and 101 are NFC-only. Overtone never normalizes a `ptrk` it writes, and compares paths with NFC-insensitive equality.
+- **Files tile exactly.** No magic number, padding, or checksum, so parsing is strict: any length that overruns its container is an error, and unknown tags are preserved so parse then serialize returns the original bytes (verified for all 140 crates and `neworder.pref`).
+- **One `_Serato_` folder per volume.** Boot volume files belong to `~/Music/_Serato_` with `ptrk` equal to the absolute path minus the leading `/`. Files under `/Volumes/<Name>` belong to that volume's `_Serato_` with `ptrk` relative to the volume root. The external volume layout is unverified by bytes.
+- **Owned namespace.** Overtone manages crates only under one top-level crate (default `Overtone`), such as `Overtone%%Dubs%%Deep.crate`, and writes every parent in the chain. It never touches crates outside that namespace. Existing files are updated by replacing only the `otrk` list, so `osrt`, `ovct`, and unknown records survive.
+- **Serato DJ 4 context.** Serato 4 keeps its authoritative library in `Library/master.sqlite` and treats `.crate` files and `neworder.pref` as an exported mirror. It records each legacy file's size and MD5 in `last_seen_dbv2_library` (in `root.sqlite`) and appears to re-import files whose hash differs when it starts. Overtone does not touch either SQLite file. Whether Serato 4 keeps externally written crates, or re-exports over them, still needs a manual test in Serato DJ 4 with a throwaway library.
+- **Serato must be closed.** `apply` refuses to write while a process runs from a `Serato DJ*.app` bundle (ignoring `seratodj-monitor` helpers).
+- **`neworder.pref`** is UTF-16BE with `\n` line breaks and lists crates depth-first, parents before children. New crates go after their parent's subtree. Overtone does not create the file when it is missing.
+
 ---
 
 ## 2. Rekordbox (`crates/sync-rekordbox`)
