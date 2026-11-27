@@ -36,6 +36,8 @@ pub enum CoreError {
     Traktor(#[from] TraktorError),
     #[error("couldn't find a folder for Overtone's data; set OVERTONE_DATA_DIR")]
     NoDataDir,
+    #[error("can't add {path} as a library folder: {reason}")]
+    InvalidRoot { path: PathBuf, reason: String },
 }
 
 impl CoreError {
@@ -61,6 +63,7 @@ impl CoreError {
             Self::Rekordbox(_) => "rekordbox",
             Self::Traktor(_) => "traktor",
             Self::NoDataDir => "no_data_dir",
+            Self::InvalidRoot { .. } => "invalid_root",
         }
     }
 }

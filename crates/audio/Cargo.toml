@@ -7,8 +7,17 @@ publish.workspace = true
 license.workspace = true
 
 [dependencies]
+blake3.workspace = true
 overtone-model.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+blake3 = { workspace = true, features = ["mmap", "rayon"] }
+overtone-testkit.workspace = true
+rayon.workspace = true
+tempfile.workspace = true
+walkdir.workspace = true
+xxhash-rust.workspace = true
 
 [lints]
 workspace = true

@@ -24,7 +24,7 @@ pub use migrations::SCHEMA_VERSION;
 pub use overtone_model as model;
 pub use roots::LibraryRoot;
 pub use sync_runs::{SyncRun, SyncStatus};
-pub use tracks::{ScannedTrack, UpsertOutcome};
+pub use tracks::{ScannedTrack, StoredFileState, UpsertOutcome};
 
 /// File name of the library database inside the app data directory.
 pub const LIBRARY_FILE_NAME: &str = "library.sqlite";

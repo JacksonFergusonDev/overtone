@@ -33,6 +33,16 @@ pub enum UpsertOutcome {
     Unchanged,
 }
 
+/// The stored file facts a rescan compares against.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredFileState {
+    pub id: TrackId,
+    pub path: String,
+    pub file_size: u64,
+    pub modified_at: UnixMillis,
+    pub missing_since: Option<UnixMillis>,
+}
+
 const TRACK_COLUMNS: &str = "id, path, file_size, modified_at, audio_hash, format, \
     sample_rate_hz, bit_depth, channels, bitrate_kbps, duration_ms, title, artist, album, \
     album_artist, remixer, label, genre, year, bpm, musical_key, comment, grouping, added_at, \
@@ -126,6 +136,29 @@ impl Library {
         )?;
         let rows = stmt
             .query_map([&prefix], |row| Ok((TrackId(row.get(0)?), row.get(1)?)))?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
+    /// What a rescan needs to tell whether each file under `root` changed,
+    /// without loading tags, vibes, or reports. `root` is matched like
+    /// [`Library::track_paths_under`].
+    pub fn file_states_under(&self, root: &str) -> Result<Vec<StoredFileState>, LibraryError> {
+        let prefix = format!("{}/", root.trim_end_matches('/'));
+        let mut stmt = self.conn.prepare(
+            "SELECT id, path, file_size, modified_at, missing_since FROM tracks \
+             WHERE substr(path, 1, length(?1)) = ?1 ORDER BY path",
+        )?;
+        let rows = stmt
+            .query_map([&prefix], |row| {
+                Ok(StoredFileState {
+                    id: TrackId(row.get(0)?),
+                    path: row.get(1)?,
+                    file_size: row.get(2)?,
+                    modified_at: row.get(3)?,
+                    missing_since: row.get(4)?,
+                })
+            })?
             .collect::<Result<Vec<_>, _>>()?;
         Ok(rows)
     }
@@ -396,6 +429,25 @@ pub(crate) mod tests {
             lib.track_by_path("/music/a%b/one.flac")
                 .expect("query")
                 .is_none()
+        );
+    }
+
+    #[test]
+    fn file_states_under_a_root_include_missing_flags() {
+        let mut lib = Library::open_in_memory().expect("open");
+        let (a, _) = lib.upsert_scanned(&scanned("/music/x/a.flac")).expect("a");
+        lib.upsert_scanned(&scanned("/music/xy/b.flac")).expect("b");
+        lib.set_missing(&[a], Some(9)).expect("missing");
+        let states = lib.file_states_under("/music/x/").expect("states");
+        assert_eq!(
+            states,
+            [StoredFileState {
+                id: a,
+                path: "/music/x/a.flac".into(),
+                file_size: 1_000,
+                modified_at: 1_700_000_000_000,
+                missing_since: Some(9),
+            }]
         );
     }
 
