@@ -14,6 +14,10 @@ impl Output {
         Self { json }
     }
 
+    pub fn is_json(&self) -> bool {
+        self.json
+    }
+
     /// Prints `value` as JSON in JSON mode, otherwise runs `human`.
     pub fn emit<T: Serialize>(&self, value: &T, human: impl FnOnce()) {
         if self.json {

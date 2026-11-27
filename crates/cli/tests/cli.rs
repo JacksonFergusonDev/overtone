@@ -133,3 +133,30 @@ fn serato_dry_run_writes_nothing_and_sync_writes_crates() {
     assert!(serato.join("Subcrates/Overtone%%Dubs%%Deep.crate").exists());
     assert!(serato.join("Subcrates/Overtone.crate").exists());
 }
+
+#[test]
+fn scan_indexes_fixtures_and_rescans_incrementally() {
+    let dir = TempDir::new().expect("tempdir");
+    let music = dir.path().join("music");
+    std::fs::create_dir_all(music.join("House")).expect("mkdir");
+    let signal = overtone_testkit::Signal {
+        seconds: 0.2,
+        ..overtone_testkit::Signal::cd(20_000.0)
+    };
+    for (name, fixture) in [
+        ("House/a.flac", overtone_testkit::Fixture::Flac { bits: 16 }),
+        ("b.wav", overtone_testkit::Fixture::Wav { bits: 16 }),
+    ] {
+        overtone_testkit::write_fixture(&music.join(name), &signal, fixture).expect("fixture");
+    }
+    let music_arg = music.to_str().expect("utf8");
+    let (ok, report) = run_json(&dir, &["scan", music_arg]);
+    assert!(ok, "{report}");
+    assert_eq!(report["added"], 2);
+    let (ok, report) = run_json(&dir, &["scan"]);
+    assert!(ok, "{report}");
+    assert_eq!(report["unchanged"], 2);
+    let (ok, tracks) = run_json(&dir, &["ls"]);
+    assert!(ok);
+    assert_eq!(tracks.as_array().expect("tracks").len(), 2);
+}

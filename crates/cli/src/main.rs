@@ -12,7 +12,7 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand};
 use overtone_core::CoreError;
 
-use crate::commands::{roots, sync, tracks, vibes};
+use crate::commands::{roots, scan, sync, tracks, vibes};
 use crate::output::Output;
 
 #[derive(Debug, Parser)]
@@ -41,6 +41,8 @@ enum Command {
     /// Manage the folders Overtone indexes.
     #[command(subcommand)]
     Roots(roots::RootsCommand),
+    /// Index audio files in your folders. Files are only read, never changed.
+    Scan(scan::ScanArgs),
     /// List tracks.
     Ls(tracks::LsArgs),
     /// Show one track in detail.
@@ -83,6 +85,7 @@ fn run(cli: &Cli, out: &Output) -> Result<(), CoreError> {
             Ok(())
         }
         Command::Roots(command) => roots::run(&library, command, out),
+        Command::Scan(args) => scan::run(&mut library, args, out),
         Command::Ls(args) => tracks::ls(&library, args, out),
         Command::Show(args) => tracks::show(&library, args, out),
         Command::Vibe(command) => vibes::run(&mut library, command, out),

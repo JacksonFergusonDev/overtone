@@ -19,13 +19,7 @@ pub enum RootsCommand {
 pub fn run(library: &Library, command: &RootsCommand, out: &Output) -> Result<(), CoreError> {
     match command {
         RootsCommand::Add { path } => {
-            let canonical = path.canonicalize().map_err(|source| {
-                CoreError::Fs(overtone_core::fs::FsError::Io {
-                    path: path.clone(),
-                    source,
-                })
-            })?;
-            let root = library.add_root(&canonical.display().to_string())?;
+            let root = overtone_core::scan::add_root(library, path)?;
             out.emit(&root, || println!("Indexing {}", root.path));
         }
         RootsCommand::Ls => {

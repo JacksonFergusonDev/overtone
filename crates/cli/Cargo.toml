@@ -14,12 +14,14 @@ path = "src/main.rs"
 [dependencies]
 clap = { workspace = true, features = ["env"] }
 comfy-table.workspace = true
+indicatif.workspace = true
 overtone-core.workspace = true
 overtone-sync-serato.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
+overtone-testkit.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true
 
