@@ -17,13 +17,14 @@ overtone-sync-traktor.workspace = true
 rayon.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
 ts-rs.workspace = true
 walkdir.workspace = true
 
 [dev-dependencies]
+overtone-sync-rekordbox = { workspace = true, features = ["fixture"] }
 overtone-testkit.workspace = true
-tempfile.workspace = true
 
 [lints]
 workspace = true
