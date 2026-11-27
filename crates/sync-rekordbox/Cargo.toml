@@ -1,12 +1,16 @@
 [package]
 name = "overtone-sync-rekordbox"
-description = "Rekordbox XML export and guarded master.db sync via rbox"
+description = "Rekordbox XML export (written with quick-xml) and a running-app check"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
 license.workspace = true
 
 [dependencies]
+overtone-fs.workspace = true
+overtone-model.workspace = true
+quick-xml.workspace = true
+sysinfo.workspace = true
 thiserror.workspace = true
 
 [lints]

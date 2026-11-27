@@ -135,6 +135,33 @@ fn serato_dry_run_writes_nothing_and_sync_writes_crates() {
 }
 
 #[test]
+fn rekordbox_dry_run_writes_nothing_and_sync_writes_xml() {
+    let dir = TempDir::new().expect("tempdir");
+    let xml = dir.path().join("out/rekordbox.xml");
+    let xml_arg = xml.to_str().expect("utf8");
+    let (ok, _) = run_json(&dir, &["vibe", "create", "Dubs/Deep"]);
+    assert!(ok);
+
+    let (ok, plan) = run_json(&dir, &["sync", "rekordbox", "--dry-run", "--out", xml_arg]);
+    assert!(ok, "{plan}");
+    assert_eq!(plan["changed"], true);
+    assert_eq!(plan["exists"], false);
+    assert_eq!(plan["playlist_count"], 1);
+    assert!(!xml.exists());
+
+    let (ok, report) = run_json(&dir, &["sync", "rekordbox", "--out", xml_arg]);
+    assert!(ok, "{report}");
+    assert_eq!(report["changed"], true);
+    let text = std::fs::read_to_string(&xml).expect("xml written");
+    assert!(text.contains("<NODE Type=\"0\" Name=\"Overtone\" Count=\"1\">"));
+    assert!(text.contains("<NODE Type=\"1\" Name=\"Deep\" KeyType=\"0\" Entries=\"0\"/>"));
+
+    let (ok, again) = run_json(&dir, &["sync", "rekordbox", "--out", xml_arg]);
+    assert!(ok, "{again}");
+    assert_eq!(again["changed"], false);
+}
+
+#[test]
 fn scan_indexes_fixtures_and_rescans_incrementally() {
     let dir = TempDir::new().expect("tempdir");
     let music = dir.path().join("music");

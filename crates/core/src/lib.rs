@@ -51,7 +51,8 @@ impl CoreError {
         match self {
             Self::Audio(_) => "audio",
             Self::Fs(FsError::Protected { .. })
-            | Self::Serato(SeratoError::Fs(FsError::Protected { .. })) => "protected_path",
+            | Self::Serato(SeratoError::Fs(FsError::Protected { .. }))
+            | Self::Rekordbox(RekordboxError::Fs(FsError::Protected { .. })) => "protected_path",
             Self::Fs(_) => "io",
             Self::Library(LibraryError::NotFound { .. } | LibraryError::NotFoundByName { .. }) => {
                 "not_found"

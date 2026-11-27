@@ -65,3 +65,16 @@ Test on a throwaway Serato library: a spare macOS user account, or temporarily s
 - [ ] `ot sync serato` refuses while Serato DJ is running.
 - [ ] Tracks on an external drive sync into that drive's `/Volumes/<Drive>/_Serato_` folder and appear in Serato (no external-drive sample has been tested yet).
 - [ ] Serato DJ 3.x, if you still use it, also picks up the crates.
+
+## Rekordbox XML export
+
+Use a throwaway Rekordbox library (a spare macOS user account, or back up Rekordbox's data folder first). Importing only reads the XML and adds to the Rekordbox collection, but it does add tracks. Export from the scratch library with `ot sync rekordbox --out /tmp/overtone-verify/rekordbox.xml`.
+
+- [ ] `ot sync rekordbox --dry-run --out <file>` lists the expected playlists and writes nothing, and the real run writes the file. A second run reports it is already up to date.
+- [ ] In Rekordbox 6 or 7, Preferences > Advanced > Database > rekordbox xml > Imported Library points at the file, and the `rekordbox xml` view in the sidebar shows an `Overtone` folder with the vibe tree. A vibe with child vibes shows as a folder starting with a playlist of its own tracks.
+- [ ] Importing a playlist adds its tracks with the right title, artist, BPM, key, and duration, and the tracks play (the `Location` paths resolve).
+- [ ] Tracks with spaces, `&`, `#`, `%`, parentheses, and accented characters in their file names import and play. Check one name stored in NFD (the form macOS file names usually use) and one in NFC.
+- [ ] Renaming a vibe and exporting again shows the new name after Rekordbox reloads the file. Playlists you imported earlier stay in your collection until you delete them yourself.
+- [ ] Your own playlists outside the imported `Overtone` folder are unchanged.
+- [ ] The export succeeds while Rekordbox is running and the CLI says to re-import. Confirm the process check detects your install: `ot sync rekordbox --json` reports `"rekordbox_running": true` with Rekordbox open and `false` with it closed (the process name and bundle layout are unverified).
+- [ ] Replacing an existing file leaves a copy under `~/Library/Application Support/com.jacksonferguson.overtone/backups/rekordbox/`.
