@@ -5,6 +5,7 @@
 //! desktop app and CLI.
 
 mod error;
+mod metadata;
 mod migrations;
 mod quality;
 mod roots;

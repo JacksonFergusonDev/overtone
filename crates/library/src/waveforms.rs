@@ -77,6 +77,7 @@ impl Library {
 
 #[cfg(test)]
 mod tests {
+    use crate::SCHEMA_VERSION;
     use overtone_model::{QualityVerdict, ReviewStatus};
     use rusqlite::Connection;
     use tempfile::TempDir;
@@ -159,7 +160,10 @@ mod tests {
             .expect("v1 track");
         }
         let lib = Library::open(&path).expect("migrate");
-        assert_eq!(lib.summary().expect("summary").schema_version, 2);
+        assert_eq!(
+            lib.summary().expect("summary").schema_version,
+            SCHEMA_VERSION
+        );
         let track = lib
             .track_by_path("/m/old.flac")
             .expect("query")

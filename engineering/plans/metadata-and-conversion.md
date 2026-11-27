@@ -9,7 +9,7 @@ The order matters. Provenance comes before any lookup so fetched values never mi
 | Step | Work | Depends on | Status |
 |---|---|---|---|
 | 1 | Surgical ID3v2 COMM patcher | nothing | Done Nov 27: byte-level splicer for ID3v2 and FLAC, 1,067 of 1,082 files writable |
-| 2 | Per-field metadata provenance | nothing | Not started |
+| 2 | Per-field metadata provenance | nothing | Done Nov 27: schema 3, library API, `overtone-cli meta`; desktop UI and writing values to files come with step 5 |
 | 3 | ffmpeg foundation (decision, build, wrapper crate) | nothing | Not started |
 | 4 | ffmpeg fallback decoder and integrity check in the audit | 3 | Not started |
 | 5 | Metadata lookup (MusicBrainz, Discogs, then AcoustID) | 2, and 4 for AcoustID | Not started |
@@ -35,6 +35,8 @@ Goal: values the DJ entered by hand must never get lost among values Overtone fe
 - Genre is kept apart: the store's genre is saved as a reference value (for example "Beatport genre") and only copied into Genre when the DJ chooses.
 - The UI shows each value's source at a glance and can filter by it (for example "fetched but not reviewed").
 - Files carry only final values. Provenance lives in Overtone's database, not in a private tag.
+
+As built (November 27, 2026): migration `0003_metadata_provenance.sql` adds `track_field_overrides` (one row per field the DJ set or a lookup filled, `source` `user` or `lookup`) and `metadata_suggestions` (pending, accepted, or rejected, unique per track, field, provider, and value so rejected values never return). `tracks` keeps the file's values exactly as scanned, so rescans never touch overrides. The rules live in `overtone_library::metadata` (`field_values`, `set_user_field`, `add_suggestions`, `accept_suggestion` with an explicit `replace`, `reject_suggestion`), with types in `overtone_model::metadata`, and the CLI exposes them as `overtone-cli meta`. Still to do, in step 5: a desktop UI for sources and suggestions, using effective values in exports, and writing accepted values into files (generalising the step 1 splicer from Comment to other text frames and Vorbis fields).
 
 ## Step 3: ffmpeg foundation
 

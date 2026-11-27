@@ -17,6 +17,7 @@ Decided November 26, 2026.
 - **One database shared by the app and CLI.** The library lives at `library.sqlite` in the app data directory for bundle identifier `com.jacksonferguson.overtone` (`~/Library/Application Support/com.jacksonferguson.overtone/` on macOS, matching Tauri's `app_data_dir()`). The CLI opens the same file and accepts `--library <path>` to use another one.
 - **Missing files.** Rescans mark tracks whose files disappeared as missing instead of deleting their records, so vibes and quality reports survive until you relink or remove them.
 - **Audio-only content hashes.** Duplicate detection hashes audio content, not whole files, so tag edits do not make a track look new. See [Vibe tags](vibe-tags.md).
+- **File values and overrides are stored apart** (November 27, 2026). `tracks` holds each field exactly as last scanned from the file; `track_field_overrides` holds values the DJ set or accepted from a lookup, and wins when present; `metadata_suggestions` holds lookup results until the DJ decides. A rescan updates only `tracks`, so the DJ's values are never lost. See the [Phase 6 plan, step 2](../plans/metadata-and-conversion.md#step-2-per-field-metadata-provenance).
 
 ## Playback
 

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use overtone_model::VibePathError;
+use overtone_model::{MetadataField, VibePathError};
 use thiserror::Error;
 
 /// Errors produced by library storage operations.
@@ -26,6 +26,20 @@ pub enum LibraryError {
     NotFound { kind: &'static str, id: i64 },
     #[error("no {kind} named {name:?}")]
     NotFoundByName { kind: &'static str, name: String },
+    #[error("{field} {reason}")]
+    FieldNotAllowed {
+        field: MetadataField,
+        reason: &'static str,
+    },
+    #[error("suggestion {id} was already {status}")]
+    SuggestionDecided { id: i64, status: &'static str },
+    #[error(
+        "accepting would replace the current {field} {current:?}; choose to replace it explicitly"
+    )]
+    WouldReplace {
+        field: MetadataField,
+        current: String,
+    },
     #[error("unexpected value {value:?} in column {column}")]
     Corrupt { column: &'static str, value: String },
 }

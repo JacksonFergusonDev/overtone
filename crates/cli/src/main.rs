@@ -12,7 +12,7 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand};
 use overtone_core::CoreError;
 
-use crate::commands::{audit, roots, scan, sync, tag, tracks, vibes};
+use crate::commands::{audit, meta, roots, scan, sync, tag, tracks, vibes};
 use crate::output::Output;
 
 #[derive(Debug, Parser)]
@@ -57,6 +57,10 @@ enum Command {
     /// Create, rename, and assign vibes.
     #[command(subcommand)]
     Vibe(vibes::VibeCommand),
+    /// See where each metadata value came from, set your own values, and
+    /// review lookup suggestions.
+    #[command(subcommand)]
+    Meta(meta::MetaCommand),
     /// Mirror vibes into Comment tags in your audio files (opt-in).
     #[command(subcommand)]
     Tag(tag::TagCommand),
@@ -99,6 +103,7 @@ fn run(cli: &Cli, out: &Output) -> Result<(), CoreError> {
         Command::Audit(args) => audit::audit(&mut library, args, out),
         Command::Review(args) => audit::review(&library, args, out),
         Command::Spectrogram(args) => audit::spectrogram(&library, args, out),
+        Command::Meta(command) => meta::run(&mut library, command, out),
         Command::Tag(command) => tag::run(&mut library, command, out),
         Command::Ls(args) => tracks::ls(&library, args, out),
         Command::Show(args) => tracks::show(&library, args, out),

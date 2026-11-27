@@ -1,4 +1,5 @@
 pub mod audit;
+pub mod meta;
 pub mod roots;
 pub mod scan;
 pub mod sync;

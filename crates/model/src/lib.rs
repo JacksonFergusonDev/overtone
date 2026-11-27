@@ -5,10 +5,15 @@
 //! the desktop app and CLI serialize them. Keep this crate free of heavy
 //! dependencies so every other crate can depend on it.
 
+mod metadata;
 mod quality;
 mod track;
 mod vibe;
 
+pub use metadata::{
+    FieldSource, FieldValue, MetadataField, MetadataSuggestion, NewSuggestion, SuggestionId,
+    SuggestionStatus,
+};
 pub use quality::{QualityReport, QualityVerdict, ReviewStatus};
 pub use track::{
     AUDIO_EXTENSIONS, AudioFormat, AudioProperties, Track, TrackId, TrackTags, is_audio_extension,

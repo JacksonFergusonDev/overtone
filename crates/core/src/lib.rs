@@ -62,6 +62,9 @@ impl CoreError {
             Self::Library(LibraryError::InvalidVibe(_)) => "invalid_vibe",
             Self::Library(LibraryError::VibeExists(_)) => "vibe_exists",
             Self::Library(LibraryError::SchemaTooNew { .. }) => "schema_too_new",
+            Self::Library(LibraryError::FieldNotAllowed { .. }) => "field_not_allowed",
+            Self::Library(LibraryError::WouldReplace { .. }) => "would_replace",
+            Self::Library(LibraryError::SuggestionDecided { .. }) => "already_decided",
             Self::Library(_) => "library",
             Self::Serato(SeratoError::SeratoRunning)
             | Self::Rekordbox(RekordboxError::AppRunning | RekordboxError::AgentRunning)
