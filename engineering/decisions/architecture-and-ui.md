@@ -56,3 +56,15 @@ Three UI approaches were evaluated against the core DJ workflow (auditioning tra
 ## Licensing
 
 The workspace uses `GPL-3.0-only`, matching Parallax and remaining directly compatible with `rbox` (`GPL-3.0-only`), which provides Rekordbox database and XML support.
+
+## Frontend stack
+
+Decided November 27, 2026, after a survey of current packages (versions as of that date):
+
+- **Track table:** `@tanstack/react-virtual` (3.14) for row virtualization, with hand-written sort and selection. The columns are fixed, so `@tanstack/react-table` would add a model layer without benefit. Tests pass `initialRect` and stub `ResizeObserver`, because jsdom has no layout and a virtualizer would otherwise render no rows.
+- **Waveform:** a canvas component drawing the 1,200 stored min/max peaks. `wavesurfer.js` wants to own decoding and rendering, which Overtone already does in Rust.
+- **Keyboard:** `react-hotkeys-hook` (5.4), which ignores keys typed into form fields by default and has scopes. The command palette and quick-tag picker are hand-written comboboxes; `cmdk` hasn't had a release since August 2025 and the tag picker needs its own ranking and create-new behavior.
+- **State:** `zustand` (5.1) stores loaded once at startup and updated by commands and progress channels. Library data is local, so a remote-cache layer such as `@tanstack/react-query` would only add loading states that AGENTS.md rules out.
+- **IPC:** long-running commands are `async` and run their blocking work through `tauri::async_runtime::spawn_blocking`, streaming progress over `tauri::ipc::Channel`. Spectrogram PNGs are written to the app cache and served over the asset protocol, so images stay out of the IPC path. Tauri's asset protocol answers `Range` requests, so seeking in large files works; FLAC and AIFF playback in WKWebView is on the [manual verification checklist](../manual-verification.md).
+
+The IPC contract and package split are in the [desktop UI plan](../plans/desktop-ui.md).

@@ -7,6 +7,7 @@
 #![allow(clippy::needless_pass_by_value)]
 
 mod error;
+pub mod ipc;
 
 use std::path::PathBuf;
 use std::sync::Mutex;
