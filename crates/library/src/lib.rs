@@ -11,6 +11,7 @@ mod roots;
 mod settings;
 mod tracks;
 mod vibes;
+mod waveforms;
 
 use std::path::Path;
 
@@ -23,6 +24,7 @@ pub use migrations::SCHEMA_VERSION;
 pub use overtone_model as model;
 pub use roots::LibraryRoot;
 pub use tracks::{ScannedTrack, UpsertOutcome};
+pub use waveforms::{AnalysisRecord, StoredWaveform};
 
 /// File name of the library database inside the app data directory.
 pub const LIBRARY_FILE_NAME: &str = "library.sqlite";
