@@ -105,3 +105,17 @@ Check at the default window size (1280x860) and the minimum (840x560). See [Usin
 - [ ] Dragging selected rows onto a vibe in the sidebar tags them.
 - [ ] The Sync view's Serato Apply, Rekordbox Export, and Comment tag Apply each match the CLI's result for the same library (run them on the throwaway setups described in the sections above).
 - [ ] Focus rings are visible on every control, and text contrast is comfortable in a dark room.
+
+## Traktor collection sync
+
+Use a throwaway Traktor setup: a spare macOS user account, or back up `~/Documents/Native Instruments/Traktor <version>/` first. Quit Traktor before each sync. Debug builds refuse to write under `~/Documents/Native Instruments`, so use a release build or a copy of the folder for this pass.
+
+- [ ] `ot sync traktor --dry-run` finds the collection on its own (or lists several installed versions and asks for `--collection`), lists the expected playlists and the tracks Traktor doesn't have, and writes nothing.
+- [ ] With Traktor Pro 3 and Traktor Pro 4 open, `ot sync traktor` refuses with `dj_app_running`. The process names are unverified: confirm each version is detected, and that it is no longer detected after quitting.
+- [ ] After a sync, Traktor Pro 3 (NML version 19) and Traktor Pro 4 (version 20) open the collection without warnings and show an `Overtone` folder at the top level with the vibe tree; a vibe with child vibes shows as a folder starting with a playlist of its own tracks.
+- [ ] Playlist tracks load and play, including file names with `&`, accented characters (one stored in NFD and one in NFC), a `:` in a folder or file name, and a stem file (`.stem.mp4`, written as `PRIMARYKEY TYPE="STEM"`).
+- [ ] A track on an external drive (`/Volumes/<Drive>/...`) that is in Traktor's collection ends up in the playlist. The volume mapping is unverified.
+- [ ] Your own playlists, smartlists, folders (including a folder named `Overtone` inside another folder), cue points, beatgrids, and track ratings are unchanged after the sync and after Traktor quits and rewrites the file.
+- [ ] Syncing again with no vibe changes reports "Already up to date" and doesn't touch the file. Changing a vibe and syncing again updates the folder in place, and Traktor keeps it in the same spot.
+- [ ] After Traktor quits and rewrites `collection.nml`, a dry run reports "Up to date" (Traktor kept Overtone's layout and UUIDs). If it reports a change, record how Traktor rewrote the folder.
+- [ ] Each changed sync leaves a copy under `~/Library/Application Support/com.jacksonferguson.overtone/backups/traktor/`, and restoring that copy restores the old collection.

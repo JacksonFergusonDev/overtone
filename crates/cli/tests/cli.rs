@@ -161,6 +161,92 @@ fn rekordbox_dry_run_writes_nothing_and_sync_writes_xml() {
     assert_eq!(again["changed"], false);
 }
 
+/// Traktor's `DIR` for a folder: every `/` becomes `/:`.
+fn nml_dir(dir: &std::path::Path) -> String {
+    let mut out = String::new();
+    for component in dir.components() {
+        if let std::path::Component::Normal(name) = component {
+            out.push_str("/:");
+            out.push_str(&name.to_str().expect("utf8").replace(':', "//"));
+        }
+    }
+    out.push_str("/:");
+    out
+}
+
+#[test]
+fn traktor_dry_run_writes_nothing_and_sync_splices_the_collection() {
+    let dir = TempDir::new().expect("tempdir");
+    let music = dir.path().join("music");
+    std::fs::create_dir_all(&music).expect("mkdir");
+    let signal = overtone_testkit::Signal {
+        seconds: 0.2,
+        ..overtone_testkit::Signal::cd(20_000.0)
+    };
+    let fixture = overtone_testkit::Fixture::Wav { bits: 16 };
+    for name in ["a.wav", "b.wav"] {
+        overtone_testkit::write_fixture(&music.join(name), &signal, fixture).expect("fixture");
+    }
+    let (ok, _) = run_json(&dir, &["scan", music.to_str().expect("utf8")]);
+    assert!(ok);
+    for name in ["a.wav", "b.wav"] {
+        let path = music.join(name);
+        let (ok, _) = run_json(
+            &dir,
+            &["vibe", "add", "Dubs/Deep", path.to_str().expect("utf8")],
+        );
+        assert!(ok);
+    }
+
+    // Only a.wav is in Traktor's collection. Scans store resolved paths
+    // (`/private/var/...` for a temp folder on macOS).
+    let dir_attr = nml_dir(&music.canonicalize().expect("canonical"));
+    let nml = dir.path().join("collection.nml");
+    let original = format!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\" ?>\n<NML VERSION=\"19\"><HEAD COMPANY=\"www.native-instruments.com\" PROGRAM=\"Traktor\"></HEAD>\n<COLLECTION ENTRIES=\"1\"><ENTRY TITLE=\"A\"><LOCATION DIR=\"{dir_attr}\" FILE=\"a.wav\" VOLUME=\"Macintosh HD\" VOLUMEID=\"Macintosh HD\"></LOCATION>\n</ENTRY>\n</COLLECTION>\n<PLAYLISTS><NODE TYPE=\"FOLDER\" NAME=\"$ROOT\"><SUBNODES COUNT=\"0\"></SUBNODES>\n</NODE>\n</PLAYLISTS>\n</NML>\n"
+    );
+    std::fs::write(&nml, &original).expect("write");
+    let nml_arg = nml.to_str().expect("utf8");
+
+    let (ok, plan) = run_json(
+        &dir,
+        &["sync", "traktor", "--dry-run", "--collection", nml_arg],
+    );
+    assert!(ok, "{plan}");
+    assert_eq!(plan["changed"], true);
+    assert_eq!(plan["traktor_version"], "19");
+    assert_eq!(plan["track_count"], 1);
+    assert_eq!(plan["skipped_tracks"].as_array().expect("skipped").len(), 1);
+    assert_eq!(std::fs::read_to_string(&nml).expect("read"), original);
+
+    let (ok, report) = run_json(&dir, &["sync", "traktor", "--collection", nml_arg]);
+    assert!(ok, "{report}");
+    assert_eq!(report["changed"], true);
+    assert!(report["backup_path"].is_string());
+    let text = std::fs::read_to_string(&nml).expect("read");
+    assert!(text.contains("<SUBNODES COUNT=\"1\"><NODE TYPE=\"FOLDER\" NAME=\"Overtone\">"));
+    assert!(text.contains(&format!(
+        "<PRIMARYKEY TYPE=\"TRACK\" KEY=\"Macintosh HD{dir_attr}a.wav\"></PRIMARYKEY>"
+    )));
+
+    let (ok, again) = run_json(&dir, &["sync", "traktor", "--collection", nml_arg]);
+    assert!(ok, "{again}");
+    assert_eq!(again["changed"], false);
+
+    let missing = dir.path().join("none.nml");
+    let (ok, err) = run_json(
+        &dir,
+        &[
+            "sync",
+            "traktor",
+            "--collection",
+            missing.to_str().expect("utf8"),
+        ],
+    );
+    assert!(!ok);
+    assert_eq!(err["error"]["code"], "io");
+}
+
 #[test]
 fn scan_indexes_fixtures_and_rescans_incrementally() {
     let dir = TempDir::new().expect("tempdir");

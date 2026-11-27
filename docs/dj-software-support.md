@@ -7,7 +7,7 @@ Overtone treats your local library database and embedded audio tags as the sourc
 | Serato DJ Pro | `_Serato_/Subcrates/*.crate` | Direct `.crate` generation under an `Overtone` crate | Available in `overtone-cli sync serato`; not yet confirmed in Serato DJ 4 |
 | Rekordbox 6 and 7 | `rekordbox.xml` | XML export for import | Available in `overtone-cli sync rekordbox`; not yet confirmed in Rekordbox |
 | Rekordbox 6 and 7 | `master.db` (SQLCipher) | Guarded live DB sync | Planned (Phase 5) |
-| Traktor Pro 3 and 4 | `collection.nml` | Lossless XML patching | Planned (Phase 5) |
+| Traktor Pro 3 and 4 | `collection.nml` | Byte-preserving splice of an `Overtone` playlist folder | Available in `overtone-cli sync traktor`; not yet confirmed in Traktor |
 
 Embedded Comment hashtags (`overtone-cli tag mirror`) work as a fallback for smart crates and playlists in all three apps. See [vibe tags](../engineering/decisions/vibe-tags.md).
 
@@ -18,5 +18,16 @@ Embedded Comment hashtags (`overtone-cli tag mirror`) work as a fallback for sma
 To import it, open Rekordbox, go to **Preferences > Advanced > Database**, set **rekordbox xml > Imported Library** to the file, then open the **rekordbox xml** view in the sidebar and drag the `Overtone` folder or single playlists into your collection. Export again after changing vibes, then reload the view.
 
 A vibe with child vibes becomes a folder. If the vibe has tracks of its own, the folder starts with a playlist of the same name holding them, so `Dubs` with a child `Deep` appears as `Dubs / Dubs` and `Dubs / Deep`.
+
+## Traktor sync
+
+`overtone-cli sync traktor` writes your vibe tree as playlists inside an `Overtone` folder at the top of Traktor's playlist tree, in `collection.nml`. Vibes map to folders and playlists the same way as the Rekordbox export. Overtone only changes that folder: your own playlists, smartlists, folders (even one you named `Overtone` inside another folder), cue points, and track metadata stay byte for byte as they were. If you delete every vibe, the next sync removes the folder.
+
+- **Close Traktor first.** Traktor rewrites `collection.nml` when it quits, which would undo the sync, so Overtone refuses while Traktor Pro 3 or 4 is running.
+- **Which file:** without options, Overtone uses the only `~/Documents/Native Instruments/Traktor <version>/collection.nml`. If you have several Traktor versions installed, choose one with `--collection <path>`.
+- **Tracks must already be in Traktor.** Playlists can only list tracks from Traktor's collection, so Overtone skips tracks Traktor hasn't imported and lists them. Add those files in Traktor, quit it, and sync again.
+- **Preview and backups:** `--dry-run` shows the playlists and the skipped tracks without writing. Before changing the file, Overtone saves a copy under `backups/traktor/` in its data folder. It writes nothing when the folder is already up to date.
+
+Tracks on an external drive (under `/Volumes/<Drive>/`) are matched as Traktor's entries for that drive; this mapping hasn't been confirmed in Traktor yet.
 
 For crate evaluations, format details, and database safety rules, see [DJ software sync](../engineering/decisions/dj-software-sync.md).
