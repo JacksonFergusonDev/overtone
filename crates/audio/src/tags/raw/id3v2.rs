@@ -265,7 +265,10 @@ pub fn decode_text_frame(frame: &RawFrame) -> Option<Vec<String>> {
             let (description, rest) = split_first(encoding, &body[1..])?;
             vec![description, latin1(rest)]
         }
-        _ if id.starts_with('T') => split_strings(*body.first()?, &body[1..])?,
+        // iTunes' GRP1, MVNM, and MVIN are text frames outside the T range.
+        _ if id.starts_with('T') || matches!(id, "GRP1" | "MVNM" | "MVIN") => {
+            split_strings(*body.first()?, &body[1..])?
+        }
         _ if id.starts_with('W') => vec![latin1(body)],
         _ => return None,
     };

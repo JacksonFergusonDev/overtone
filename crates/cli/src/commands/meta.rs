@@ -3,6 +3,7 @@ use overtone_core::CoreError;
 use overtone_core::library::{Library, LibraryError};
 use overtone_core::model::{
     FieldSource, FieldValue, MetadataField, MetadataSuggestion, SuggestionId, SuggestionStatus,
+    TrackId,
 };
 
 use super::resolve_track;
@@ -69,6 +70,129 @@ pub enum MetaCommand {
         #[arg(long)]
         contact: Option<String>,
     },
+    /// Write your values and accepted lookup values into the files' tags
+    /// (title, artist, album, album_artist, remixer, label, genre, year,
+    /// bpm, key, grouping). Every write is verified before it replaces the
+    /// file. Previews by default; pass --write to apply.
+    Apply(FileSelection),
+    /// Put back the field values files had before `meta apply` first
+    /// changed them. Your values stay in Overtone.
+    Restore(FileSelection),
+}
+
+#[derive(Debug, clap::Args)]
+pub struct FileSelection {
+    /// Tracks (ids or paths). Without any, uses every track it applies to.
+    tracks: Vec<String>,
+    /// Only tracks in this vibe.
+    #[arg(long)]
+    vibe: Option<String>,
+    /// Actually write the files. Without it, only shows what would change.
+    #[arg(long)]
+    write: bool,
+}
+
+fn select_files(
+    library: &Library,
+    selection: &FileSelection,
+    default: impl FnOnce() -> Result<Vec<TrackId>, CoreError>,
+) -> Result<Vec<TrackId>, CoreError> {
+    let mut ids = if selection.tracks.is_empty() {
+        default()?
+    } else {
+        selection
+            .tracks
+            .iter()
+            .map(|s| resolve_track(library, s).map(|t| t.id))
+            .collect::<Result<Vec<_>, _>>()?
+    };
+    if let Some(name) = &selection.vibe {
+        let vibe = super::find_vibe(library, &super::parse_vibe(name)?)?;
+        let members = library.tracks_in_vibe(vibe.id)?;
+        ids.retain(|id| members.contains(id));
+    }
+    Ok(ids)
+}
+
+fn apply_to_files(
+    library: &mut Library,
+    selection: &FileSelection,
+    out: &Output,
+) -> Result<(), CoreError> {
+    use overtone_core::writeback;
+    let ids = select_files(library, selection, || {
+        writeback::tracks_with_own_values(library)
+    })?;
+    let plans = writeback::plan_tag_writes(library, &ids)?;
+    if !selection.write {
+        out.emit(&plans, || {
+            if plans.is_empty() {
+                println!("Every file already holds your values.");
+                return;
+            }
+            for plan in &plans {
+                println!("{}", plan.path);
+                for change in &plan.changes {
+                    println!(
+                        "  {}: {} -> {}",
+                        change.field,
+                        or_blank(change.before.as_deref()),
+                        or_blank(change.after.as_deref())
+                    );
+                }
+            }
+            println!(
+                "{} file(s) would change. Nothing was written; rerun with --write to apply.",
+                plans.len()
+            );
+        });
+        return Ok(());
+    }
+    let progress = |p: writeback::TagWriteProgress| {
+        if !out.is_json() {
+            eprint!("\rWriting {}/{}", p.done, p.total);
+        }
+    };
+    let report = writeback::apply_tag_writes(
+        library,
+        &plans,
+        overtone_core::fs::ProtectedRoots::global(),
+        None,
+        &progress,
+    );
+    if !out.is_json() && !plans.is_empty() {
+        eprintln!();
+    }
+    super::tag::print_report(out, &report, "Wrote");
+    Ok(())
+}
+
+fn restore_files(
+    library: &mut Library,
+    selection: &FileSelection,
+    out: &Output,
+) -> Result<(), CoreError> {
+    use overtone_core::writeback;
+    let ids = select_files(library, selection, || {
+        writeback::tracks_with_original_tags(library)
+    })?;
+    if !selection.write {
+        out.emit(&ids, || {
+            println!(
+                "{} file(s) would be considered for restoring. Nothing was written; rerun with \
+                 --write to restore them.",
+                ids.len()
+            );
+        });
+        return Ok(());
+    }
+    let report = writeback::restore_original_tags(
+        library,
+        &ids,
+        overtone_core::fs::ProtectedRoots::global(),
+    );
+    super::tag::print_report(out, &report, "Restored");
+    Ok(())
 }
 
 fn parse_field(name: &str) -> Result<MetadataField, CoreError> {
@@ -186,6 +310,8 @@ pub fn run(library: &mut Library, command: &MetaCommand, out: &Output) -> Result
                 println!("Lookups will use: {}", available.join(", "));
             });
         }
+        MetaCommand::Apply(selection) => apply_to_files(library, selection, out)?,
+        MetaCommand::Restore(selection) => restore_files(library, selection, out)?,
         MetaCommand::Reject { id } => {
             library.reject_suggestion(SuggestionId(*id))?;
             let rejected = library.suggestion(SuggestionId(*id))?;

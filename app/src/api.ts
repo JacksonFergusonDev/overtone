@@ -10,6 +10,9 @@ import type { ExportProgress } from "./bindings/ExportProgress";
 import type { ExportReport } from "./bindings/ExportReport";
 import type { ExportSettings } from "./bindings/ExportSettings";
 import type { FieldValue } from "./bindings/FieldValue";
+import type { FieldWrite } from "./bindings/FieldWrite";
+import type { TagWritePlan } from "./bindings/TagWritePlan";
+import type { TagWriteProgress } from "./bindings/TagWriteProgress";
 import type { IntegrityProgress } from "./bindings/IntegrityProgress";
 import type { IntegrityRunReport } from "./bindings/IntegrityRunReport";
 import type { LookupProgress } from "./bindings/LookupProgress";
@@ -48,6 +51,7 @@ export type {
   ExportReport,
   ExportSettings,
   FieldValue,
+  FieldWrite,
   IntegrityProgress,
   IntegrityRunReport,
   LookupProgress,
@@ -56,6 +60,8 @@ export type {
   MetadataField,
   MetadataSuggestion,
   SuggestionId,
+  TagWritePlan,
+  TagWriteProgress,
   TrackDetails,
 };
 export type { Conversion } from "./bindings/Conversion";
@@ -370,4 +376,19 @@ export const commands = {
   /** Deletes the FLAC Overtone wrote for a track (never the original). */
   discardConversion: (trackId: TrackId) =>
     invoke<boolean>("discard_conversion", { trackId }),
+  /** Previews writing your and accepted values into files (null: every
+   * track that has some). */
+  planTagWrites: (trackIds: TrackId[] | null) =>
+    invoke<TagWritePlan[]>("plan_tag_writes", { trackIds }),
+  writeTags: (
+    trackIds: TrackId[] | null,
+    onProgress?: (progress: TagWriteProgress) => void,
+  ) =>
+    invoke<MirrorReport>("write_tags", {
+      trackIds,
+      onProgress: channel(onProgress),
+    }),
+  /** Puts back the values files had before Overtone wrote them. */
+  restoreOriginalTags: (trackIds: TrackId[] | null) =>
+    invoke<MirrorReport>("restore_original_tags", { trackIds }),
 };

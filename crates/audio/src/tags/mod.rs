@@ -3,11 +3,13 @@
 //! - [`read_metadata`]: fast scan read with lofty's concrete file types
 //!   (no artwork, best-attempt parsing).
 //! - [`vibes`]: pure hashtag logic for mirroring vibes into Comment.
-//! - [`write_comment`]: the only tag write Overtone performs. It rebuilds
-//!   only the Comment frame or field byte by byte and is guarded by
-//!   [`raw`]'s independent walkers. See
+//! - [`write_comment`]: rebuilds only the Comment frame or field byte by
+//!   byte, guarded by [`raw`]'s independent walkers. See
 //!   `engineering/decisions/tag-writing.md`.
+//! - [`write_fields`]: the same splice and checks for the other text
+//!   fields the scanner reads (title, artist, label, year, ...).
 
+mod fields;
 mod meta;
 pub mod raw;
 pub(crate) mod read;
@@ -22,6 +24,7 @@ use overtone_model::{AudioProperties, TrackTags};
 
 use crate::AudioError;
 
+pub use fields::{FieldEdit, WRITABLE_FIELDS, reads_as, write_fields};
 pub use read::parse_bpm;
 pub use vibes::{apply_vibes_to_comment, hashtags_in};
 pub use write::write_comment;

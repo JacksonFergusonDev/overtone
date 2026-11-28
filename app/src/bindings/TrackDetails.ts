@@ -3,6 +3,7 @@ import type { Conversion } from "./Conversion";
 import type { FieldValue } from "./FieldValue";
 import type { IntegrityCheck } from "./IntegrityCheck";
 import type { LoudnessReport } from "./LoudnessReport";
+import type { MetadataField } from "./MetadataField";
 import type { MetadataSuggestion } from "./MetadataSuggestion";
 import type { TrackId } from "./TrackId";
 
@@ -11,4 +12,13 @@ import type { TrackId } from "./TrackId";
  * field's value and source, pending lookup suggestions, loudness, the
  * integrity check, and a conversion waiting for relocation.
  */
-export type TrackDetails = { track_id: TrackId, fields: Array<FieldValue>, suggestions: Array<MetadataSuggestion>, loudness: LoudnessReport | null, integrity: IntegrityCheck | null, conversion: Conversion | null, };
+export type TrackDetails = { track_id: TrackId, fields: Array<FieldValue>, suggestions: Array<MetadataSuggestion>, loudness: LoudnessReport | null, integrity: IntegrityCheck | null, conversion: Conversion | null, 
+/**
+ * Your or accepted values the file doesn't hold yet.
+ */
+unwritten: Array<MetadataField>, 
+/**
+ * Whether Overtone wrote field values into this file and kept the
+ * originals.
+ */
+restorable: boolean, };

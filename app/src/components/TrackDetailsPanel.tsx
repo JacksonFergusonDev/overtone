@@ -18,8 +18,10 @@ import {
   runExport,
   runIntegrity,
   runLookup,
+  runRestoreTags,
   setField,
   useDetails,
+  writeTagsWithConfirm,
 } from "../store/details";
 import { useJobs } from "../store/jobs";
 import { notifyError } from "../store/toasts";
@@ -70,7 +72,15 @@ function db(value: number | null, unit: string): string {
   return value === null ? "—" : `${value.toFixed(1)} ${unit}`;
 }
 
-function FieldRow({ trackId, value }: { trackId: number; value: FieldValue }) {
+function FieldRow({
+  trackId,
+  value,
+  unwritten,
+}: {
+  trackId: number;
+  value: FieldValue;
+  unwritten: boolean;
+}) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value.value ?? "");
   const editable = value.field !== "comment";
@@ -112,6 +122,13 @@ function FieldRow({ trackId, value }: { trackId: number; value: FieldValue }) {
             <span className={`source-pill source-${value.source}`}>
               {sourceLabel(value)}
             </span>
+            {unwritten && (
+              <span
+                className="unwritten-dot"
+                title="Not in the file yet"
+                aria-label="Not in the file yet"
+              />
+            )}
             {editable && (
               <button
                 type="button"
@@ -329,6 +346,7 @@ export function TrackDetailsPanel({ track }: { track: Track }) {
   const loudness = details?.loudness ?? null;
   const integrity = details?.integrity ?? null;
   const suggestions = details?.suggestions ?? [];
+  const unwritten = details?.unwritten ?? [];
 
   return (
     <div className="track-details">
@@ -408,9 +426,45 @@ export function TrackDetailsPanel({ track }: { track: Track }) {
         </h4>
         <dl className="fields">
           {fields.map((value) => (
-            <FieldRow key={value.field} trackId={track.id} value={value} />
+            <FieldRow
+              key={value.field}
+              trackId={track.id}
+              value={value}
+              unwritten={unwritten.includes(value.field)}
+            />
           ))}
         </dl>
+        {(unwritten.length > 0 || details?.restorable) && (
+          <p className="small details-actions">
+            {unwritten.length > 0 && (
+              <>
+                <span className="dim">
+                  {unwritten.length === 1
+                    ? "1 value isn't in the file yet."
+                    : `${unwritten.length} values aren't in the file yet.`}{" "}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-small"
+                  disabled={busy || track.missing_since !== null}
+                  onClick={() => void writeTagsWithConfirm([track.id])}
+                >
+                  Write to file…
+                </button>
+              </>
+            )}
+            {details?.restorable && (
+              <button
+                type="button"
+                className="link-button"
+                disabled={busy || track.missing_since !== null}
+                onClick={() => void runRestoreTags([track.id])}
+              >
+                Restore the file's original values
+              </button>
+            )}
+          </p>
+        )}
       </section>
 
       <section className="details-section" aria-label="Suggestions">

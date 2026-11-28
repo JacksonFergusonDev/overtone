@@ -1,5 +1,5 @@
-//! Surgical Comment writes: rebuild only the target `COMM` frame (ID3v2)
-//! or `COMMENT` field (FLAC) and copy every other byte of the file as is.
+//! Surgical tag writes: rebuild only the frames (ID3v2) or fields (FLAC)
+//! an [`Editor`] changes and copy every other byte of the file as is.
 //!
 //! No tag library is involved, so frames lofty would normalise, merge, or
 //! drop (ID3v2.4 frames in a v2.3 tag, duplicate frames, odd dates or
@@ -12,25 +12,77 @@ use std::path::Path;
 
 use super::raw::{
     self, Container, FlacLayout, Id3v2Layout, IffChunk, IffLayout, Layout, RawError, RawFrame,
+    VorbisComment,
 };
 
 /// Padding added when a tag has to grow, so the next edit fits in place.
 const GROW_PADDING: usize = 2048;
 
-/// Writes the original's bytes with the Comment replaced into `out`, which
+/// What a splice changes: the frames of the new ID3v2 tag and the entries
+/// of the new Vorbis comment. Everything else is copied byte for byte.
+pub(crate) trait Editor {
+    /// The frames the new tag holds, given the old tag (an empty ID3v2.4
+    /// tag when the file has none). Returning no frames for a file without
+    /// a tag leaves it without one.
+    fn id3_frames(&self, tag: &Id3v2Layout) -> Result<Vec<RawFrame>, RawError>;
+    /// The new Vorbis comment entries, or `None` to leave the block as is.
+    fn vorbis_entries(
+        &self,
+        existing: Option<&VorbisComment>,
+    ) -> Result<Option<Vec<Vec<u8>>>, RawError>;
+}
+
+/// The Comment writer's edit: replace, add, or remove the target Comment.
+pub(crate) struct CommentEdit<'a>(pub Option<&'a str>);
+
+impl Editor for CommentEdit<'_> {
+    fn id3_frames(&self, tag: &Id3v2Layout) -> Result<Vec<RawFrame>, RawError> {
+        Ok(comment_frames(tag, self.0))
+    }
+
+    fn vorbis_entries(
+        &self,
+        existing: Option<&VorbisComment>,
+    ) -> Result<Option<Vec<Vec<u8>>>, RawError> {
+        let mut entries = existing.map_or_else(Vec::new, |vc| vc.entries.clone());
+        let index = entries
+            .iter()
+            .position(|e| raw::VorbisComment::is_comment_entry(e));
+        match (index, self.0) {
+            (Some(i), Some(text)) => {
+                let key_len = 8;
+                let mut entry = entries[i][..key_len].to_vec();
+                entry.extend_from_slice(text.as_bytes());
+                entries[i] = entry;
+            }
+            (Some(i), None) => {
+                entries.remove(i);
+            }
+            (None, Some(text)) => {
+                let mut entry = b"COMMENT=".to_vec();
+                entry.extend_from_slice(text.as_bytes());
+                entries.push(entry);
+            }
+            (None, None) => return Ok(None),
+        }
+        Ok(Some(entries))
+    }
+}
+
+/// Writes the original's bytes with `editor`'s changes into `out`, which
 /// must be a different file from `original`.
-pub(crate) fn write_spliced(
+pub(crate) fn write_edited(
     original: &Path,
     layout: &Layout,
     out: &Path,
-    new_comment: Option<&str>,
+    editor: &dyn Editor,
 ) -> Result<(), RawError> {
     let mut src = File::open(original)?;
     let mut dst = BufWriter::new(File::create(out)?);
     match layout.container {
-        Container::Mp3 => splice_mp3(&mut src, &mut dst, layout, new_comment)?,
-        Container::Wav | Container::Aiff => splice_iff(&mut src, &mut dst, layout, new_comment)?,
-        Container::Flac => splice_flac(&mut src, &mut dst, layout, new_comment)?,
+        Container::Mp3 => splice_mp3(&mut src, &mut dst, layout, editor)?,
+        Container::Wav | Container::Aiff => splice_iff(&mut src, &mut dst, layout, editor)?,
+        Container::Flac => splice_flac(&mut src, &mut dst, layout, editor)?,
     }
     let file = dst
         .into_inner()
@@ -58,41 +110,57 @@ fn splice_mp3(
     src: &mut File,
     dst: &mut impl Write,
     layout: &Layout,
-    new_comment: Option<&str>,
+    editor: &dyn Editor,
 ) -> Result<(), RawError> {
     let (old_len, tag) = match &layout.id3v2 {
-        Some(tag) => (tag.range.end, rebuild_id3(tag, new_comment, None)?),
-        None => match new_comment {
-            None => (0, Vec::new()),
-            Some(text) => (0, new_id3(text)?),
-        },
+        Some(tag) => (
+            tag.range.end,
+            serialize_id3(tag, &editor.id3_frames(tag)?, None)?,
+        ),
+        None => (0, new_id3(editor)?.unwrap_or_default()),
     };
     dst.write_all(&tag)?;
     copy_range(src, dst, old_len, layout.file_len)?;
     Ok(())
 }
 
-/// A new ID3v2.4 tag holding only the Comment.
-fn new_id3(text: &str) -> Result<Vec<u8>, RawError> {
-    let empty = Id3v2Layout {
+/// An empty ID3v2.4 tag, the starting point for a file without one.
+pub(crate) fn empty_id3() -> Id3v2Layout {
+    Id3v2Layout {
         major: 4,
         revision: 0,
         flags: 0,
         range: 0..0,
         frames: Vec::new(),
         padding: 0,
-    };
-    rebuild_id3(&empty, Some(text), None)
+    }
+}
+
+/// A new ID3v2.4 tag holding `editor`'s frames, or `None` if it adds none.
+fn new_id3(editor: &dyn Editor) -> Result<Option<Vec<u8>>, RawError> {
+    let empty = empty_id3();
+    let frames = editor.id3_frames(&empty)?;
+    if frames.is_empty() {
+        return Ok(None);
+    }
+    serialize_id3(&empty, &frames, None).map(Some)
 }
 
 /// Re-serialises `tag` with the target Comment replaced, removed, or
-/// appended. Every other frame is written from its stored bytes. With
-/// `fixed_len`, the tag is padded to exactly that many bytes when it fits.
+/// appended. With `fixed_len`, the tag is padded to exactly that many bytes
+/// when it fits.
+#[cfg(test)]
 fn rebuild_id3(
     tag: &Id3v2Layout,
     new_comment: Option<&str>,
     fixed_len: Option<u64>,
 ) -> Result<Vec<u8>, RawError> {
+    serialize_id3(tag, &comment_frames(tag, new_comment), fixed_len)
+}
+
+/// `tag`'s frames with the target Comment replaced, removed, or appended.
+/// Every other frame keeps its stored bytes.
+fn comment_frames(tag: &Id3v2Layout, new_comment: Option<&str>) -> Vec<RawFrame> {
     let target = tag.target_comment().map(|(index, _, _)| index);
     let mut frames: Vec<RawFrame> = Vec::with_capacity(tag.frames.len() + 1);
     for (index, frame) in tag.frames.iter().enumerate() {
@@ -117,9 +185,19 @@ fn rebuild_id3(
             body: comm_body(tag.major, None, text),
         });
     }
+    frames
+}
 
+/// Writes `frames` as a tag with `tag`'s header. The tag keeps its old
+/// size (or `fixed_len`) when the frames fit, and otherwise grows with
+/// fresh padding.
+fn serialize_id3(
+    tag: &Id3v2Layout,
+    frames: &[RawFrame],
+    fixed_len: Option<u64>,
+) -> Result<Vec<u8>, RawError> {
     let mut body = Vec::new();
-    for frame in &frames {
+    for frame in frames {
         body.extend_from_slice(frame.id.as_bytes());
         let len = u32::try_from(frame.body.len())
             .map_err(|_| RawError::new("an ID3v2 frame is too large"))?;
@@ -148,6 +226,26 @@ fn rebuild_id3(
     Ok(out)
 }
 
+/// The body of a text frame (`TIT2`, `TPE1`, ...) holding `text`, keeping
+/// the old frame's encoding when the text can be stored in it.
+pub(crate) fn text_body(major: u8, old: Option<&RawFrame>, text: &str) -> Vec<u8> {
+    let encoding = pick_encoding(major, old.and_then(|f| f.body.first().copied()), text);
+    let mut body = vec![encoding];
+    body.extend_from_slice(&encode(encoding, text, false));
+    body
+}
+
+/// Keeps `old` when it can hold `text` in this ID3 version, else picks
+/// Latin-1 for Latin-1 text and UTF-16 otherwise.
+fn pick_encoding(major: u8, old: Option<u8>, text: &str) -> u8 {
+    match old {
+        Some(0) | None if is_latin1(text) => 0,
+        Some(3) if major == 4 => 3,
+        Some(2) if major == 4 => 2,
+        _ => 1,
+    }
+}
+
 /// The body of a `COMM` frame holding `text`, keeping the old frame's
 /// language and (when the text can be stored in it) its encoding and
 /// description bytes.
@@ -161,12 +259,7 @@ fn comm_body(major: u8, old: Option<&RawFrame>, text: &str) -> Vec<u8> {
         }
         _ => (None, *b"eng", None),
     };
-    let encoding = match old_encoding {
-        Some(0) | None if is_latin1(text) => 0,
-        Some(3) if major == 4 => 3,
-        Some(2) if major == 4 => 2,
-        _ => 1,
-    };
+    let encoding = pick_encoding(major, old_encoding, text);
     let mut body = vec![encoding];
     body.extend_from_slice(&language);
     match prefix {
@@ -244,7 +337,7 @@ fn splice_iff(
     src: &mut File,
     dst: &mut impl Write,
     layout: &Layout,
-    new_comment: Option<&str>,
+    editor: &dyn Editor,
 ) -> Result<(), RawError> {
     let iff = layout
         .iff
@@ -253,14 +346,13 @@ fn splice_iff(
     match (iff.id3_chunk(), &layout.id3v2) {
         (Some(chunk), Some(tag)) => {
             let data_len = chunk.data.end - chunk.data.start;
-            let new_tag = rebuild_id3(tag, new_comment, Some(data_len))?;
+            let new_tag = serialize_id3(tag, &editor.id3_frames(tag)?, Some(data_len))?;
             replace_chunk(src, dst, layout, iff, chunk, chunk.id, &new_tag)
         }
         (Some(_), None) => Err(RawError::new("the ID3 chunk holds no tag")),
-        (None, _) => match new_comment {
+        (None, _) => match new_id3(editor)? {
             None => copy_range(src, dst, 0, layout.file_len).map_err(RawError::from),
-            Some(text) => {
-                let mut tag = new_id3(text)?;
+            Some(mut tag) => {
                 if tag.len() % 2 == 1 {
                     tag.push(0);
                 }
@@ -356,7 +448,7 @@ fn splice_flac(
     src: &mut File,
     dst: &mut impl Write,
     layout: &Layout,
-    new_comment: Option<&str>,
+    editor: &dyn Editor,
 ) -> Result<(), RawError> {
     let flac = layout
         .flac
@@ -365,7 +457,7 @@ fn splice_flac(
     if flac.id3_prefix.is_some() {
         return Err(RawError::new("ID3v2 in front of FLAC"));
     }
-    let blocks = rebuild_flac_blocks(flac, new_comment)?;
+    let blocks = rebuild_flac_blocks(flac, editor)?;
     dst.write_all(b"fLaC")?;
     let count = blocks.len();
     for (i, (kind, body)) in blocks.iter().enumerate() {
@@ -386,7 +478,7 @@ fn splice_flac(
 /// block grows or shrinks to keep the metadata the same size when it can.
 fn rebuild_flac_blocks(
     flac: &FlacLayout,
-    new_comment: Option<&str>,
+    editor: &dyn Editor,
 ) -> Result<Vec<(u8, Vec<u8>)>, RawError> {
     use raw::flac::{PADDING, VORBIS_COMMENT};
     let mut blocks: Vec<(u8, Vec<u8>)> = flac
@@ -400,29 +492,9 @@ fn rebuild_flac_blocks(
         .find(|(kind, _)| *kind == VORBIS_COMMENT)
         .map(|(_, body)| body.len());
 
-    let mut entries = existing
-        .as_ref()
-        .map_or_else(Vec::new, |vc| vc.entries.clone());
-    let index = entries
-        .iter()
-        .position(|e| raw::VorbisComment::is_comment_entry(e));
-    match (index, new_comment) {
-        (Some(i), Some(text)) => {
-            let key_len = 8;
-            let mut entry = entries[i][..key_len].to_vec();
-            entry.extend_from_slice(text.as_bytes());
-            entries[i] = entry;
-        }
-        (Some(i), None) => {
-            entries.remove(i);
-        }
-        (None, Some(text)) => {
-            let mut entry = b"COMMENT=".to_vec();
-            entry.extend_from_slice(text.as_bytes());
-            entries.push(entry);
-        }
-        (None, None) => return Ok(blocks),
-    }
+    let Some(entries) = editor.vorbis_entries(existing.as_ref())? else {
+        return Ok(blocks);
+    };
     let vendor = existing
         .as_ref()
         .map_or_else(|| b"Overtone".to_vec(), |vc| vc.vendor.clone());

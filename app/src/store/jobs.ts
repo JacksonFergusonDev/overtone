@@ -19,7 +19,7 @@ export interface JobState<Progress, Report> {
 
 /** A lookup, integrity check, export, or conversion (see `store/details`). */
 export interface BackgroundJob {
-  kind: "lookup" | "integrity" | "export" | "convert" | null;
+  kind: "lookup" | "integrity" | "export" | "convert" | "write" | null;
   running: boolean;
   done: number;
   total: number;

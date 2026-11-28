@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use super::WriteReport;
+use super::fields::{self, FieldPlan};
 use super::raw::{
     CommentKey, Container, FlacLayout, Id3v2Layout, IffChunk, IffLayout, Layout, RawFrame,
     VorbisComment, block_type_name, decode_text_frame, ranges_equal,
@@ -19,6 +20,8 @@ pub(crate) struct Verifier<'a> {
     pub temp: &'a Layout,
     /// The Comment the edited copy must hold (`None`: no Comment).
     pub expected: Option<&'a str>,
+    /// For a field write: the planned edits, checked instead of the Comment.
+    pub fields: Option<&'a FieldPlan>,
 }
 
 type Check = Result<(), (&'static str, String)>;
@@ -41,11 +44,11 @@ impl Verifier<'_> {
         }
         match self.original.container {
             Container::Mp3 => {
-                self.check_id3(report)?;
+                self.check_tag(report)?;
                 self.check_trailer()?;
             }
             Container::Wav | Container::Aiff => {
-                self.check_id3(report)?;
+                self.check_tag(report)?;
                 self.check_chunks(report)?;
                 self.check_trailer()?;
             }
@@ -79,12 +82,23 @@ impl Verifier<'_> {
         }
     }
 
-    fn check_id3(&self, report: &mut WriteReport) -> Check {
+    fn check_tag(&self, report: &mut WriteReport) -> Check {
         let original = self.original.id3v2.as_ref();
         let temp = self.temp.id3v2.as_ref();
         report.tag_bytes_before = original.map_or(0, |t| t.range.end - t.range.start);
         report.tag_bytes_after = temp.map_or(0, |t| t.range.end - t.range.start);
+        match self.fields {
+            Some(plan) => fields::check_id3(&plan.id3, original, temp, report),
+            None => self.check_id3(original, temp, report),
+        }
+    }
 
+    fn check_id3(
+        &self,
+        original: Option<&Id3v2Layout>,
+        temp: Option<&Id3v2Layout>,
+        report: &mut WriteReport,
+    ) -> Check {
         let (target_index, key) = match original.and_then(Id3v2Layout::target_comment) {
             Some((index, key, _)) => (Some(index), key),
             None => (None, CommentKey::default_target()),
@@ -232,6 +246,13 @@ impl Verifier<'_> {
 
         let vc = |layout: &FlacLayout| layout.vorbis_comment().map_err(|e| ("vorbis comment", e.0));
         let (before, after) = (vc(original)?, vc(temp)?);
+        if let Some(plan) = self.fields {
+            let vorbis = plan
+                .vorbis
+                .as_ref()
+                .ok_or(("vorbis comment", "missing Vorbis plan".to_string()))?;
+            return fields::check_vorbis(vorbis, before.as_ref(), after.as_ref());
+        }
         let empty = VorbisComment {
             vendor: Vec::new(),
             entries: Vec::new(),
@@ -362,7 +383,11 @@ fn untouched_chunks(layout: &IffLayout) -> Vec<&IffChunk> {
 /// Binary frames (GEOB, PRIV, APIC, and anything that isn't text) must be
 /// byte-identical; text frames may be re-encoded but must decode to the
 /// same strings.
-fn compare_frames(before: &[&RawFrame], after: &[&RawFrame], report: &mut WriteReport) -> Check {
+pub(crate) fn compare_frames(
+    before: &[&RawFrame],
+    after: &[&RawFrame],
+    report: &mut WriteReport,
+) -> Check {
     let a = group_frames(before);
     let b = group_frames(after);
     let counts = |m: &BTreeMap<String, Vec<&RawFrame>>| {
@@ -502,6 +527,7 @@ mod tests {
             temp_path: temp,
             temp: &b,
             expected,
+            fields: None,
         }
         .run()
     }

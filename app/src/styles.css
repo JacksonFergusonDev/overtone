@@ -1660,6 +1660,15 @@ details summary {
   border-color: var(--info);
 }
 
+.unwritten-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  align-self: center;
+}
+
 .suggestions {
   list-style: none;
   margin: 0 0 8px;

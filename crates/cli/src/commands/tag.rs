@@ -105,7 +105,7 @@ fn select(
     Ok(ids)
 }
 
-fn print_report(out: &Output, report: &MirrorReport, verb: &str) {
+pub(crate) fn print_report(out: &Output, report: &MirrorReport, verb: &str) {
     out.emit(report, || {
         println!(
             "{verb} {} file(s); {} already matched; {} not written.",

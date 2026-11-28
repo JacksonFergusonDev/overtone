@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-plan-tag-writes"
+description = "Enables the plan_tag_writes command without any pre-configured scope."
+commands.allow = ["plan_tag_writes"]
+
+[[permission]]
+identifier = "deny-plan-tag-writes"
+description = "Denies the plan_tag_writes command without any pre-configured scope."
+commands.deny = ["plan_tag_writes"]

@@ -4,9 +4,11 @@ import type {
   ExportSettings,
   MetadataField,
   MetadataSuggestion,
+  MirrorReport,
   TrackDetails,
   TrackId,
 } from "../lib/types";
+import { confirmAction } from "./confirm";
 import { useJobs } from "./jobs";
 import { reloadTracks } from "./library";
 import { notify, notifyError } from "./toasts";
@@ -85,13 +87,15 @@ export async function decideSuggestion(
   await loadDetails(suggestion.track_id);
 }
 
-export type BackgroundKind = "lookup" | "integrity" | "export" | "convert";
+export type BackgroundKind =
+  "lookup" | "integrity" | "export" | "convert" | "write";
 
 const LABEL: Record<BackgroundKind, string> = {
   lookup: "Looking up",
   integrity: "Checking files",
   export: "Exporting",
   convert: "Converting",
+  write: "Writing tags",
 };
 
 /** The running background job's progress line, or null. */
@@ -178,6 +182,71 @@ export const runConvert = (trackIds: TrackId[] | null) =>
     (onProgress) => backend.convertTracks(trackIds, onProgress),
     (r) =>
       `Converted and verified ${r.converted.length} track(s) to FLAC${r.failures.length ? `, ${r.failures.length} failed` : ""}`,
+  );
+
+function failures(r: MirrorReport): string {
+  if (!r.failed.length) return "";
+  const first = r.failed[0];
+  return `; ${r.failed.length} not written, unchanged (${first.message})`;
+}
+
+export const runWriteTags = (trackIds: TrackId[] | null) =>
+  run(
+    "write",
+    (onProgress) => backend.writeTags(trackIds, onProgress),
+    (r) =>
+      `Wrote your values into ${r.written.length} file(s)${r.unchanged.length ? `, ${r.unchanged.length} already matched` : ""}${failures(r)}`,
+  );
+
+const FIELD_NAME: Partial<Record<MetadataField, string>> = {
+  album_artist: "Album artist",
+  bpm: "BPM",
+};
+
+function fieldName(field: MetadataField): string {
+  return FIELD_NAME[field] ?? field.charAt(0).toUpperCase() + field.slice(1);
+}
+
+/** Previews writing your and accepted values into files, asks, and writes. */
+export async function writeTagsWithConfirm(
+  trackIds: TrackId[] | null,
+): Promise<void> {
+  let plans;
+  try {
+    plans = await backend.planTagWrites(trackIds);
+  } catch (error) {
+    notifyError(errorMessage(error));
+    return;
+  }
+  if (plans.length === 0) {
+    notify("Every file already holds your values.");
+    return;
+  }
+  const changes = plans.flatMap((p) => p.changes);
+  const lines =
+    plans.length === 1
+      ? changes.map(
+          (c) =>
+            `${fieldName(c.field)}: ${c.before ?? "blank"} → ${c.after ?? "blank"}`,
+        )
+      : [`${changes.length} value(s) in ${plans.length} file(s).`];
+  lines.push(
+    "Each write is checked before it replaces the file: Serato cues, artwork, other tags, and the audio stay exactly as they are. Overtone keeps the original values so you can restore them.",
+  );
+  const ok = await confirmAction({
+    title: plans.length === 1 ? "Write to the file?" : "Write to files?",
+    body: lines.join("\n\n"),
+    confirmLabel: "Write",
+  });
+  if (ok) await runWriteTags(trackIds);
+}
+
+export const runRestoreTags = (trackIds: TrackId[] | null) =>
+  run(
+    "write",
+    () => backend.restoreOriginalTags(trackIds),
+    (r) =>
+      `Restored the original values in ${r.written.length} file(s)${failures(r)}`,
   );
 
 export async function cancelBackground(): Promise<void> {

@@ -125,12 +125,17 @@ pub fn restore_original_comments(
     report
 }
 
-enum Done {
+pub(crate) enum Done {
     Written,
     Unchanged,
 }
 
-fn record(report: &mut MirrorReport, id: TrackId, path: &str, result: Result<Done, Failure>) {
+pub(crate) fn record(
+    report: &mut MirrorReport,
+    id: TrackId,
+    path: &str,
+    result: Result<Done, Failure>,
+) {
     match result {
         Ok(Done::Written) => report.written.push(id),
         Ok(Done::Unchanged) => report.unchanged.push(id),
@@ -143,9 +148,9 @@ fn record(report: &mut MirrorReport, id: TrackId, path: &str, result: Result<Don
     }
 }
 
-struct Failure {
-    code: String,
-    message: String,
+pub(crate) struct Failure {
+    pub code: String,
+    pub message: String,
 }
 
 impl From<CoreError> for Failure {
@@ -163,7 +168,7 @@ impl From<CoreError> for Failure {
     }
 }
 
-fn core<E: Into<CoreError>>(err: E) -> Failure {
+pub(crate) fn core<E: Into<CoreError>>(err: E) -> Failure {
     match err.into() {
         // Surface guarded-write errors under their own codes.
         CoreError::Audio(AudioError::Fs(fs)) => Failure::from(CoreError::Fs(fs)),
@@ -243,7 +248,7 @@ pub fn modified_millis(metadata: &std::fs::Metadata) -> UnixMillis {
 /// Re-reads the written file and stores its new tags, size, and
 /// modification time. The audio hash is kept: Comment writes never change
 /// the audio, which the write verified byte for byte.
-fn refresh(library: &mut Library, track: &Track) -> Result<(), Failure> {
+pub(crate) fn refresh(library: &mut Library, track: &Track) -> Result<(), Failure> {
     let path = Path::new(&track.path);
     let metadata = read_metadata(path).map_err(core)?;
     let stat = std::fs::metadata(path).map_err(|err| Failure {

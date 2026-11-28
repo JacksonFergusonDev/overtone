@@ -181,7 +181,7 @@ fn edit_and_verify(
     temp: &Path,
     new_comment: Option<&str>,
 ) -> Result<WriteReport, AudioError> {
-    splice::write_spliced(original, layout, temp, new_comment)
+    splice::write_edited(original, layout, temp, &splice::CommentEdit(new_comment))
         .map_err(|err| refused(original, format!("couldn't write the copy: {}", err.0)))?;
     meta::carry_over(original, temp)?;
 
@@ -198,6 +198,7 @@ fn edit_and_verify(
         temp_path: temp,
         temp: &temp_layout,
         expected: new_comment,
+        fields: None,
     }
     .run()?;
 

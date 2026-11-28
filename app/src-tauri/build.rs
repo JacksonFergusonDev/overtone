@@ -47,6 +47,9 @@ const COMMANDS: &[&str] = &[
     "plan_conversion",
     "convert_tracks",
     "discard_conversion",
+    "plan_tag_writes",
+    "write_tags",
+    "restore_original_tags",
 ];
 
 fn main() {

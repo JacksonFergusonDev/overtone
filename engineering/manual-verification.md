@@ -79,6 +79,18 @@ Do this on clones, never originals: `cp -c -R local/music /tmp/tag-test`, then `
 - [ ] `ot tag restore --write` puts the original Comments back, and the DJ apps show the originals after reloading tags.
 - [ ] Finder tags and the creation date on written files are unchanged (Get Info in Finder).
 
+## Field writes (meta apply)
+
+Do this on clones: `cp -c` a few analysed files (an ID3v2.3 MP3, an ID3v2.4 MP3, a FLAC, a WAV, and an AIFF) into a scratch folder, scan it with a scratch library, set a label, year, grouping, and title with `ot meta set`, and run `ot meta apply --write`.
+
+- [ ] Serato DJ: after rescanning ID3 tags, the new title, label, year, and grouping show, and cues, loops, beatgrid, color, and the overview are intact.
+- [ ] Rekordbox: after Reload Tag, the new values show and hot cues, memory cues, and the beatgrid are intact.
+- [ ] Traktor: after Import Metadata from Files, the new values show, cues and grid are intact, and it doesn't reanalyze.
+- [ ] A FLAC whose label lives in `ORGANIZATION` (or `PUBLISHER`) shows the new label in each app; note any app that reads `LABEL` only.
+- [ ] Non-ASCII text (for example `Écoute Records ✓`) shows correctly in all three apps, including in ID3v2.3 files, where Overtone switches the frame to UTF-16.
+- [ ] `ot meta restore --write` brings the old values back in every app.
+- [ ] In the desktop app, the inspector's dot and **Write to file…** appear after editing a field, the confirm dialog lists the change, and **Restore the file's original values** appears after writing.
+
 ## Serato crate sync
 
 Test on a throwaway Serato library: a spare macOS user account, or temporarily swap in a copy of `~/Music/_Serato_` and `~/Library/Application Support/Serato` with Serato closed, and restore the originals afterwards. Serato 4 keeps its library in `master.sqlite` and tracks each `.crate` file's size and MD5, so its behavior with externally written crates is the main unknown.

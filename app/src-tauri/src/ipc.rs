@@ -47,6 +47,11 @@ pub struct TrackDetails {
     pub loudness: Option<overtone_core::model::LoudnessReport>,
     pub integrity: Option<overtone_core::model::IntegrityCheck>,
     pub conversion: Option<overtone_core::model::Conversion>,
+    /// Your or accepted values the file doesn't hold yet.
+    pub unwritten: Vec<overtone_core::model::MetadataField>,
+    /// Whether Overtone wrote field values into this file and kept the
+    /// originals.
+    pub restorable: bool,
 }
 
 /// Which lookup credentials are set. The secrets themselves never go back

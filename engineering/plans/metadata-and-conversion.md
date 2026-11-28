@@ -116,7 +116,7 @@ No open-source tool converts formats while keeping DJ data across Serato, Rekord
 
 ## Desktop surfaces for Phase 6
 
-Done Nov 27. Fourteen Tauri commands (`commands/metadata.rs` and `commands/files.rs`) back a track details panel in the inspector (sound and integrity, field sources with edit and revert, suggestion review, export, and convert) and Settings cards for lookup keys, batch lookup, integrity checks, and batch conversion. Lookup, integrity, export, and conversion share one background job slot with the audit (`useJobs().background`), so only one runs at a time. Still to do: a "Damaged" filter chip in the library (needs integrity status in `list_tracks`), and writing accepted and user values into files.
+Done Nov 27. Fourteen Tauri commands (`commands/metadata.rs` and `commands/files.rs`) back a track details panel in the inspector (sound and integrity, field sources with edit and revert, suggestion review, export, and convert) and Settings cards for lookup keys, batch lookup, integrity checks, and batch conversion. Lookup, integrity, export, and conversion share one background job slot with the audit (`useJobs().background`), so only one runs at a time. Writing accepted and user values into files landed the same day ([field writes](../decisions/tag-writing.md#field-writes)): `overtone-cli meta apply` and `meta restore`, **Write to file…** in the inspector, and **Write metadata…** in Settings. Still to do: a "Damaged" filter chip in the library (needs integrity status in `list_tracks`), and reading catalog number, ISRC, release date, and track and disc numbers from files so they can be written and checked too.
 
 ## Deferred
 

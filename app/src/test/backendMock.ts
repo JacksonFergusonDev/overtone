@@ -52,6 +52,8 @@ function createBackend(): Mocked<Backend> {
       loudness: null,
       integrity: null,
       conversion: null,
+      unwritten: [],
+      restorable: false,
     })),
     setTrackField: vi.fn(),
     resetTrackField: vi.fn(),
@@ -71,6 +73,9 @@ function createBackend(): Mocked<Backend> {
     planConversion: vi.fn(),
     convertTracks: vi.fn(),
     discardConversion: vi.fn(async () => true),
+    planTagWrites: vi.fn(async () => []),
+    writeTags: vi.fn(),
+    restoreOriginalTags: vi.fn(),
   } as unknown as Mocked<Backend>;
 }
 

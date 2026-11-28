@@ -65,6 +65,9 @@ fn builder<R: tauri::Runtime>() -> tauri::Builder<R> {
         files::plan_conversion,
         files::convert_tracks,
         files::discard_conversion,
+        metadata::plan_tag_writes,
+        metadata::write_tags,
+        metadata::restore_original_tags,
     ])
 }
 
@@ -150,6 +153,7 @@ mod tests {
             ("lookup_settings", serde_json::json!({})),
             ("list_suggestions", serde_json::json!({})),
             ("plan_conversion", serde_json::json!({ "trackIds": [] })),
+            ("plan_tag_writes", serde_json::json!({ "trackIds": [] })),
         ] {
             let response = get_ipc_response(&window, request(&key, cmd, body));
             assert!(response.is_ok(), "{cmd} failed: {:?}", response.err());

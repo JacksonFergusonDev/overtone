@@ -24,7 +24,28 @@ Use `--clear` instead of a value to blank a field on purpose. `overtone-cli meta
 
 You can set title, artist, album, album_artist, remixer, label, genre, year, bpm, key, grouping, catalog_number, isrc, release_date, track_number, disc_number, and store_genre. Comment changes only through vibe mirroring (`overtone-cli tag mirror`).
 
-Values you set live in Overtone's library for now. Writing them into your audio files and DJ software exports comes in a later release.
+Values you set live in Overtone's library until you write them into your files (see below). Exports already use them.
+
+## Write your values into your files
+
+Your values and accepted lookup values stay in Overtone until you copy them into the audio files, so your DJ software sees them too:
+
+```bash
+overtone-cli meta apply
+overtone-cli meta apply --write
+```
+
+The first command previews each file's changes; `--write` writes them. Name tracks or add `--vibe <vibe>` to write only some. Overtone writes title, artist, album, album artist, remixer, label, genre, year, BPM, key, and grouping into MP3, WAV, AIFF, and FLAC files. Catalog number, ISRC, release date, track and disc numbers, and store genre stay in Overtone for now, and M4A files aren't written yet.
+
+Each value goes into the tag your DJ software already reads it from. For example, a FLAC whose label is in `ORGANIZATION` keeps it there, and an MP3 with an iTunes `GRP1` grouping keeps using `GRP1`. Every write is checked before it replaces the file: Serato cues and beatgrids, artwork, every other tag, and the audio itself stay exactly as they were, and anything Overtone can't check is refused and left untouched, with the reason.
+
+Your values stay yours after they're written, and Overtone remembers what each file held before its first write:
+
+```bash
+overtone-cli meta restore --write
+```
+
+This puts the files' original values back. Your values stay in Overtone, so `meta apply` can write them again later.
 
 ## Look tracks up online
 

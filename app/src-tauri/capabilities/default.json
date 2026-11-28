@@ -53,6 +53,9 @@
     "allow-export-tracks",
     "allow-plan-conversion",
     "allow-convert-tracks",
-    "allow-discard-conversion"
+    "allow-discard-conversion",
+    "allow-plan-tag-writes",
+    "allow-write-tags",
+    "allow-restore-original-tags"
   ]
 }

@@ -22,6 +22,7 @@ pub mod scan;
 pub mod sync;
 pub mod tags;
 pub mod traktor;
+pub mod writeback;
 
 pub use overtone_ffmpeg as ffmpeg;
 pub use overtone_fs as fs;

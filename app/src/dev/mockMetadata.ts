@@ -11,8 +11,10 @@ import type {
   LookupSettings,
   LoudnessReport,
   MetadataField,
+  MirrorReport,
   MetadataSuggestion,
   Provider,
+  TagWritePlan,
   Track,
   TrackDetails,
   TrackId,
@@ -45,6 +47,50 @@ export const METADATA_FIELDS: MetadataField[] = [
 ];
 
 const PERSONAL: MetadataField[] = ["comment", "grouping"];
+
+/** Fields the real backend can write into files. */
+const WRITABLE: MetadataField[] = [
+  "title",
+  "artist",
+  "album",
+  "album_artist",
+  "remixer",
+  "label",
+  "genre",
+  "year",
+  "bpm",
+  "key",
+  "grouping",
+];
+
+function setFileValue(
+  track: Track,
+  field: MetadataField,
+  value: string | null,
+) {
+  const t = track.tags;
+  switch (field) {
+    case "year":
+      t.year = value === null ? null : Number.parseInt(value, 10);
+      break;
+    case "bpm":
+      t.bpm = value === null ? null : Number.parseFloat(value);
+      break;
+    case "title":
+    case "artist":
+    case "album":
+    case "album_artist":
+    case "remixer":
+    case "label":
+    case "genre":
+    case "key":
+    case "grouping":
+      t[field] = value;
+      break;
+    default:
+      break;
+  }
+}
 
 interface Override {
   value: string | null;
@@ -141,6 +187,27 @@ export function createMetadataMock(ctx: MockContext) {
       file_value: null,
     };
   };
+
+  const originals = new Map<number, Map<MetadataField, string | null>>();
+
+  const tagPlan = (track: Track): TagWritePlan | null => {
+    const changes = WRITABLE.flatMap((field) => {
+      const found = overrides.get(track.id)?.get(field);
+      const before = fileValue(track, field);
+      if (!found || found.value === before) return [];
+      return [{ field, before, after: found.value }];
+    });
+    return changes.length
+      ? { track_id: track.id, path: track.path, changes }
+      : null;
+  };
+
+  const tagPlans = (ids: TrackId[] | null): TagWritePlan[] =>
+    (ids ?? [...overrides.keys()])
+      .map((id) => ctx.find(id))
+      .filter((t) => t.missing_since === null)
+      .map(tagPlan)
+      .filter((p): p is TagWritePlan => p !== null);
 
   const suggest = (
     track: Track,
@@ -276,8 +343,12 @@ export function createMetadataMock(ctx: MockContext) {
         loudness: loudness(track),
         integrity: integrity.get(track.id) ?? null,
         conversion: conversions.get(track.id) ?? null,
+        unwritten: tagPlan(track)?.changes.map((c) => c.field) ?? [],
+        restorable: originals.has(track.id),
       };
     },
+    plan_tag_writes: (args) =>
+      tagPlans((args.trackIds as TrackId[] | null) ?? null),
     set_track_field: (args) => {
       const track = ctx.find(args.trackId);
       const field = args.field as MetadataField;
@@ -373,6 +444,49 @@ export function createMetadataMock(ctx: MockContext) {
   };
 
   const async: Record<string, (args: Args) => Promise<unknown>> = {
+    write_tags: (args) =>
+      job(async (): Promise<MirrorReport> => {
+        const plans = tagPlans((args.trackIds as TrackId[] | null) ?? null);
+        const report: MirrorReport = { written: [], unchanged: [], failed: [] };
+        for (const [index, plan] of plans.entries()) {
+          if (ctx.jobs.cancelled()) break;
+          await ctx.sleep(5);
+          const track = ctx.find(plan.track_id);
+          const saved = originals.get(track.id) ?? new Map();
+          for (const change of plan.changes) {
+            if (!saved.has(change.field))
+              saved.set(change.field, change.before);
+            setFileValue(track, change.field, change.after);
+          }
+          originals.set(track.id, saved);
+          report.written.push(track.id);
+          ctx.send(args.onProgress, {
+            done: index + 1,
+            total: plans.length,
+            track_id: track.id,
+          });
+        }
+        return report;
+      }),
+    restore_original_tags: (args) =>
+      job(async (): Promise<MirrorReport> => {
+        const ids = (args.trackIds as TrackId[] | null) ?? [
+          ...originals.keys(),
+        ];
+        const report: MirrorReport = { written: [], unchanged: [], failed: [] };
+        for (const id of ids) {
+          const saved = originals.get(id);
+          if (!saved) {
+            report.unchanged.push(id);
+            continue;
+          }
+          const track = ctx.find(id);
+          for (const [field, value] of saved) setFileValue(track, field, value);
+          originals.delete(id);
+          report.written.push(id);
+        }
+        return report;
+      }),
     lookup_tracks: (args) =>
       job(async (): Promise<LookupReport> => {
         const ids =

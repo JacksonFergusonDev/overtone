@@ -8,6 +8,7 @@ import {
   runConvert,
   runIntegrity,
   runLookup,
+  writeTagsWithConfirm,
 } from "../store/details";
 import { useJobs } from "../store/jobs";
 import { notify, notifyError } from "../store/toasts";
@@ -196,8 +197,9 @@ export function FilesCard() {
           <h2 id="settings-files">Files</h2>
           <p className="dim">
             Integrity checks decode every file in full and list errors.
-            Conversion writes FLACs beside your WAV and AIFF files. Both need
-            ffmpeg.
+            Conversion writes FLACs beside your WAV and AIFF files; both need
+            ffmpeg. Writing metadata copies values you set or accepted into the
+            files' tags.
           </p>
         </div>
         <div className="card-actions">
@@ -216,6 +218,14 @@ export function FilesCard() {
             onClick={() => void convertAll()}
           >
             Convert to FLAC…
+          </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={busy}
+            onClick={() => void writeTagsWithConfirm(null)}
+          >
+            Write metadata…
           </button>
         </div>
       </header>

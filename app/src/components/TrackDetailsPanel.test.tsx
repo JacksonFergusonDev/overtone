@@ -54,6 +54,8 @@ function details(trackId: number, extra: Partial<TrackDetails>): TrackDetails {
     loudness: null,
     integrity: null,
     conversion: null,
+    unwritten: [],
+    restorable: false,
     ...extra,
   };
 }
@@ -226,5 +228,62 @@ describe("Track details after a job", () => {
     expect(
       await within(suggestions).findByText(/Hospital Records/),
     ).toBeInTheDocument();
+  });
+});
+
+describe("Writing values into the file", () => {
+  it("previews, confirms, and writes, then offers to restore", async () => {
+    let written = false;
+    backend.trackDetails.mockImplementation(async (id: number) =>
+      details(id, {
+        fields: [
+          field({
+            field: "label",
+            value: "Hospital",
+            source: "user",
+            file_value: written ? "Hospital" : "Old",
+          }),
+        ],
+        unwritten: written ? [] : ["label"],
+        restorable: written,
+      }),
+    );
+    backend.planTagWrites.mockResolvedValue([
+      {
+        track_id: 2,
+        path: "/m/b.mp3",
+        changes: [{ field: "label", before: "Old", after: "Hospital" }],
+      },
+    ]);
+    backend.writeTags.mockImplementation(async () => {
+      written = true;
+      return { written: [2], unchanged: [], failed: [] };
+    });
+    const { user } = await openFirstReviewTrack();
+    const metadata = await within(inspector()).findByRole("region", {
+      name: "Metadata",
+    });
+    expect(
+      await within(metadata).findByLabelText("Not in the file yet"),
+    ).toBeInTheDocument();
+    await user.click(
+      within(metadata).getByRole("button", { name: "Write to file…" }),
+    );
+    const dialog = await screen.findByRole("alertdialog");
+    expect(
+      within(dialog).getByText(/Label: Old → Hospital/),
+    ).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Write" }));
+    await waitFor(() =>
+      expect(backend.writeTags).toHaveBeenCalledWith([2], expect.any(Function)),
+    );
+    expect(
+      await within(metadata).findByRole("button", {
+        name: "Restore the file's original values",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(metadata).queryByLabelText("Not in the file yet"),
+    ).not.toBeInTheDocument();
   });
 });

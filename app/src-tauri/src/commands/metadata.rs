@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
 use overtone_core::CoreError;
+use overtone_core::fs::ProtectedRoots;
 use overtone_core::library::{Library, LibraryError};
 use overtone_core::lookup::{
     self, LookupConfig, LookupOptions, LookupProgress, LookupReport, SETTING_ACOUSTID_KEY,
@@ -13,6 +14,8 @@ use overtone_core::lookup::{
 use overtone_core::model::{
     FieldValue, MetadataField, MetadataSuggestion, SuggestionId, SuggestionStatus, TrackId,
 };
+use overtone_core::tags::MirrorReport;
+use overtone_core::writeback::{self, TagWritePlan, TagWriteProgress};
 use tauri::State;
 use tauri::ipc::Channel;
 
@@ -29,7 +32,95 @@ pub fn details(library: &Library, track_id: TrackId) -> Result<TrackDetails, Cor
         loudness: library.loudness(track_id)?,
         integrity: library.integrity_check(track_id)?,
         conversion: library.pending_conversion(track_id)?,
+        unwritten: writeback::plan_tag_writes(library, &[track_id])?
+            .into_iter()
+            .flat_map(|plan| plan.changes)
+            .map(|change| change.field)
+            .collect(),
+        restorable: writeback::tracks_with_original_tags(library)?.contains(&track_id),
     })
+}
+
+fn own_tracks(
+    library: &Library,
+    track_ids: Option<Vec<TrackId>>,
+) -> Result<Vec<TrackId>, CoreError> {
+    match track_ids {
+        Some(ids) => Ok(ids),
+        None => writeback::tracks_with_own_values(library),
+    }
+}
+
+/// Previews writing your and accepted values into the given tracks' files
+/// (or every track that has such values).
+#[tauri::command]
+pub async fn plan_tag_writes(
+    state: State<'_, AppState>,
+    track_ids: Option<Vec<TrackId>>,
+) -> Result<Vec<TagWritePlan>, CommandError> {
+    let library_path = state.library_path().to_path_buf();
+    tauri::async_runtime::spawn_blocking(move || {
+        let library = Library::open(&library_path).map_err(CoreError::from)?;
+        let ids = own_tracks(&library, track_ids)?;
+        Ok(writeback::plan_tag_writes(&library, &ids)?)
+    })
+    .await
+    .map_err(|err| join_error(&err))?
+}
+
+/// Writes your and accepted values into the files, previewing afresh first.
+/// Runs in the background job slot and can be cancelled.
+#[tauri::command]
+pub async fn write_tags(
+    state: State<'_, AppState>,
+    track_ids: Option<Vec<TrackId>>,
+    on_progress: Channel<TagWriteProgress>,
+) -> Result<MirrorReport, CommandError> {
+    let slot = state.start_audit()?;
+    let library_path = state.library_path().to_path_buf();
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut library = Library::open(&library_path).map_err(CoreError::from)?;
+        let ids = own_tracks(&library, track_ids)?;
+        let plans = writeback::plan_tag_writes(&library, &ids)?;
+        let cancel = slot.cancel_flag();
+        Ok(writeback::apply_tag_writes(
+            &mut library,
+            &plans,
+            ProtectedRoots::global(),
+            Some(&cancel),
+            &|progress| {
+                let _ = on_progress.send(progress);
+            },
+        ))
+    })
+    .await
+    .map_err(|err| join_error(&err))?
+}
+
+/// Puts back the field values files had before Overtone wrote them, for the
+/// given tracks or every track with saved originals.
+#[tauri::command]
+pub async fn restore_original_tags(
+    state: State<'_, AppState>,
+    track_ids: Option<Vec<TrackId>>,
+) -> Result<MirrorReport, CommandError> {
+    let slot = state.start_audit()?;
+    let library_path = state.library_path().to_path_buf();
+    tauri::async_runtime::spawn_blocking(move || {
+        let _slot = slot;
+        let mut library = Library::open(&library_path).map_err(CoreError::from)?;
+        let ids = match track_ids {
+            Some(ids) => ids,
+            None => writeback::tracks_with_original_tags(&library)?,
+        };
+        Ok(writeback::restore_original_tags(
+            &mut library,
+            &ids,
+            ProtectedRoots::global(),
+        ))
+    })
+    .await
+    .map_err(|err| join_error(&err))?
 }
 
 pub fn settings(library: &Library) -> Result<LookupSettings, CoreError> {
