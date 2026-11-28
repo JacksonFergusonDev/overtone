@@ -64,8 +64,8 @@ pub enum MetaCommand {
         acoustid_key: Option<String>,
         #[arg(long)]
         discogs_token: Option<String>,
-        /// A contact (email or URL) sent to MusicBrainz in the User-Agent,
-        /// as it asks. Optional.
+        /// A contact (email or URL) sent to MusicBrainz in the User-Agent
+        /// instead of the Overtone project's own.
         #[arg(long)]
         contact: Option<String>,
     },

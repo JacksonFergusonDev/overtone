@@ -1,6 +1,6 @@
 //! Cached waveform peaks, and batched saving of analysis results.
 
-use overtone_model::{QualityReport, TrackId, UnixMillis};
+use overtone_model::{LoudnessReport, QualityReport, TrackId, UnixMillis};
 use rusqlite::{OptionalExtension, params};
 
 use crate::{Library, LibraryError, now_millis};
@@ -21,6 +21,8 @@ pub struct AnalysisRecord {
     pub report: QualityReport,
     /// Encoded waveform peaks; `None` when analysis failed.
     pub waveform: Option<Vec<u8>>,
+    /// Loudness measurements; `None` when analysis failed.
+    pub loudness: Option<LoudnessReport>,
 }
 
 impl Library {
@@ -39,6 +41,51 @@ impl Library {
             params![track.0, analyzer_version, data, now_millis()],
         )?;
         Ok(())
+    }
+
+    /// Stores or replaces the loudness measurements for `track`.
+    pub fn save_loudness(
+        &self,
+        track: TrackId,
+        loudness: &LoudnessReport,
+    ) -> Result<(), LibraryError> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO loudness_reports (track_id, integrated_lufs, \
+             loudness_range_lu, true_peak_dbtp, sample_peak_dbfs, clipped_runs, \
+             leading_silence_ms) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                track.0,
+                loudness.integrated_lufs,
+                loudness.loudness_range_lu,
+                loudness.true_peak_dbtp,
+                loudness.sample_peak_dbfs,
+                i64::try_from(loudness.clipped_runs).unwrap_or(i64::MAX),
+                i64::try_from(loudness.leading_silence_ms).unwrap_or(i64::MAX),
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// The stored loudness measurements for `track`, if any.
+    pub fn loudness(&self, track: TrackId) -> Result<Option<LoudnessReport>, LibraryError> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT integrated_lufs, loudness_range_lu, true_peak_dbtp, sample_peak_dbfs, \
+                 clipped_runs, leading_silence_ms FROM loudness_reports WHERE track_id = ?1",
+                [track.0],
+                |row| {
+                    Ok(LoudnessReport {
+                        integrated_lufs: row.get(0)?,
+                        loudness_range_lu: row.get(1)?,
+                        true_peak_dbtp: row.get(2)?,
+                        sample_peak_dbfs: row.get(3)?,
+                        clipped_runs: u64::try_from(row.get::<_, i64>(4)?).unwrap_or(0),
+                        leading_silence_ms: u64::try_from(row.get::<_, i64>(5)?).unwrap_or(0),
+                    })
+                },
+            )
+            .optional()?)
     }
 
     /// The stored waveform peaks for `track`, if any.
@@ -68,6 +115,9 @@ impl Library {
             self.save_quality_report(record.track, &record.report)?;
             if let Some(data) = &record.waveform {
                 self.save_waveform(record.track, record.report.analyzer_version, data)?;
+            }
+            if let Some(loudness) = &record.loudness {
+                self.save_loudness(record.track, loudness)?;
             }
         }
         tx.commit()?;
@@ -126,6 +176,14 @@ mod tests {
                 track: a,
                 report: report(),
                 waveform: Some(vec![1, 0, 0]),
+                loudness: Some(LoudnessReport {
+                    integrated_lufs: Some(-8.5),
+                    loudness_range_lu: Some(4.0),
+                    true_peak_dbtp: Some(0.4),
+                    sample_peak_dbfs: Some(-0.1),
+                    clipped_runs: 3,
+                    leading_silence_ms: 120,
+                }),
             },
             AnalysisRecord {
                 track: b,
@@ -134,10 +192,16 @@ mod tests {
                     ..report()
                 },
                 waveform: None,
+                loudness: None,
             },
         ])
         .expect("batch");
         assert!(lib.tracks_needing_analysis(1).expect("pending").is_empty());
+        assert_eq!(
+            lib.loudness(a).expect("a").expect("stored").integrated_lufs,
+            Some(-8.5)
+        );
+        assert!(lib.loudness(b).expect("b").is_none());
         assert!(lib.waveform(a).expect("a").is_some());
         assert!(lib.waveform(b).expect("b").is_none());
     }

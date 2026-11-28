@@ -178,6 +178,7 @@ pub fn audit_tracks_with(
                                 track: *id,
                                 report: analysis.report,
                                 waveform: Some(analysis.waveform.encode()),
+                                loudness: Some(analysis.loudness),
                             },
                             analysis.decoded_by_ffmpeg,
                         ),
@@ -186,6 +187,7 @@ pub fn audit_tracks_with(
                                 track: *id,
                                 report: unchecked_report(err.to_string()),
                                 waveform: None,
+                                loudness: None,
                             },
                             false,
                         ),
@@ -247,6 +249,7 @@ pub fn analyze_one(
         track: id,
         report: analysis.report.clone(),
         waveform: Some(analysis.waveform.encode()),
+        loudness: Some(analysis.loudness),
     }])?;
     Ok(library.track(id)?.quality.unwrap_or(analysis.report))
 }

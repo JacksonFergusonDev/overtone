@@ -89,6 +89,7 @@ struct ShowOutput<'a> {
     vibes: Vec<&'a Vibe>,
     duplicates: Vec<i64>,
     integrity: Option<overtone_core::model::IntegrityCheck>,
+    loudness: Option<overtone_core::model::LoudnessReport>,
 }
 
 pub fn show(library: &Library, args: &ShowArgs, out: &Output) -> Result<(), CoreError> {
@@ -108,6 +109,7 @@ pub fn show(library: &Library, args: &ShowArgs, out: &Output) -> Result<(), Core
         vibes,
         duplicates,
         integrity: library.integrity_check(track.id)?,
+        loudness: library.loudness(track.id)?,
     };
     out.emit(&payload, || {
         let t = &track.tags;
@@ -143,6 +145,26 @@ pub fn show(library: &Library, args: &ShowArgs, out: &Output) -> Result<(), Core
         }
         if let Some(reason) = track.quality.as_ref().and_then(|q| q.reason.as_deref()) {
             println!("  {:<12} {reason}", "Why");
+        }
+        if let Some(l) = &payload.loudness {
+            let db = |v: Option<f64>, unit: &str| v.map_or_else(|| "silent".to_string(), |v| format!("{v:.1} {unit}"));
+            println!(
+                "  {:<12} {} integrated, range {}, true peak {}",
+                "Loudness",
+                db(l.integrated_lufs, "LUFS"),
+                l.loudness_range_lu.map_or_else(String::new, |v| format!("{v:.1} LU")),
+                db(l.true_peak_dbtp, "dBTP"),
+            );
+            if l.clipped_runs > 0 {
+                println!("  {:<12} {} clipped run(s) at full scale", "Clipping", l.clipped_runs);
+            }
+            if l.leading_silence_ms >= 500 {
+                println!(
+                    "  {:<12} {:.1} s before the first sound",
+                    "Silence",
+                    l.leading_silence_ms as f64 / 1000.0
+                );
+            }
         }
         if let Some(check) = &payload.integrity {
             if check.clean {

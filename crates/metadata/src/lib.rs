@@ -154,11 +154,20 @@ pub fn best_match(query: &Query, candidates: Vec<Candidate>, strictness: f64) ->
     best
 }
 
-/// A User-Agent that names Overtone and, when the DJ sets one, a contact
-/// (MusicBrainz asks clients for one). No personal data is sent otherwise.
+/// The contact providers see by default: the maintainer's, set at build
+/// time with `OVERTONE_DEFAULT_LOOKUP_CONTACT` (in `.cargo/config.toml`
+/// `[env]` or the release build's environment). `None` when unset.
+pub const DEFAULT_CONTACT: Option<&str> = option_env!("OVERTONE_DEFAULT_LOOKUP_CONTACT");
+
+/// The User-Agent for lookups: `Overtone/<version> ( <contact> )`, as
+/// MusicBrainz asks. `contact` replaces [`DEFAULT_CONTACT`] when set.
 pub fn user_agent(contact: Option<&str>) -> String {
     let base = format!("Overtone/{}", env!("CARGO_PKG_VERSION"));
-    match contact.map(str::trim).filter(|c| !c.is_empty()) {
+    match contact
+        .map(str::trim)
+        .filter(|c| !c.is_empty())
+        .or(DEFAULT_CONTACT.map(str::trim).filter(|c| !c.is_empty()))
+    {
         Some(contact) => format!("{base} ( {contact} )"),
         None => base,
     }
@@ -247,9 +256,13 @@ mod tests {
     }
 
     #[test]
-    fn user_agent_has_no_contact_unless_set() {
-        assert!(!user_agent(None).contains('('));
+    fn user_agent_uses_the_given_contact_over_the_default() {
         assert!(user_agent(Some("dj@example.com")).ends_with("( dj@example.com )"));
+        let default = user_agent(None);
+        match DEFAULT_CONTACT {
+            Some(contact) => assert!(default.contains(contact.trim())),
+            None => assert!(!default.contains('(')),
+        }
     }
 
     #[test]

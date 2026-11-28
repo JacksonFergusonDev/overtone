@@ -16,7 +16,7 @@ pub use metadata::{
     FieldSource, FieldValue, MetadataField, MetadataSuggestion, NewSuggestion, SuggestionId,
     SuggestionStatus,
 };
-pub use quality::{QualityReport, QualityVerdict, ReviewStatus};
+pub use quality::{LoudnessReport, QualityReport, QualityVerdict, ReviewStatus};
 pub use track::{
     AUDIO_EXTENSIONS, AudioFormat, AudioProperties, Track, TrackId, TrackTags, is_audio_extension,
 };

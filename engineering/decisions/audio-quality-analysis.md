@@ -79,6 +79,14 @@ Decided November 27, 2026 (Phase 6 step 4). The spectral heuristics are unchange
 
 That leaves 16 files with errors inside the music: 14 MP3s on which ffmpeg reports `bits_left` warnings in most frames (from 2 to 47,011 lines), one MP3 with corrupt frames, and one WAV ffmpeg can't open at all (lofty can't read its chunk sizes either). Whether the `bits_left` files sound damaged is a listening check in the [manual verification checklist](../manual-verification.md).
 
+### Loudness, peaks, and leading silence (Phase 6 step 6)
+
+The same pass measures integrated loudness (EBU R128) and loudness range (EBU Tech 3342) with `ebur128` 0.1.11 (MIT, a port of libebur128), true peak (4x oversampled) and sample peak over all channels, clipped runs (3 or more consecutive full-scale samples in a channel, already counted for the verdict), and leading silence (time before the first sample above -60 dBFS). They are stored in `loudness_reports` and shown by `overtone-cli show`. They are reports only: Overtone never changes gain or trims silence, which would shift every cue point.
+
+Cost, from `cargo run --release -p overtone-audio --example loudness_bench` on 20 files (97 minutes of audio, single-threaded): the full analysis took 15.4 s, of which integrated loudness alone costs 3.8 s, loudness range 1.1 s more, sample peak 0.6 s, and true peak 3.8 s. Per-sample K-weighting and oversampling cost about as much as the rest of the analysis, so the first audit of a library takes roughly twice as long: 238 s for the 1,151 files on `local/`, against 105 s before, though that run came right after a 106 s integrity pass on the same fanless Mac, so some of it is thermal. Later audits only analyze new tracks. A meter in f32 with NEON, or running it on its own thread beside the FFT, are the options if this matters.
+
+On `local/`: average integrated loudness -7.5 LUFS (from -29.1 to -1.6), 1,067 of 1,151 files with a true peak above 0 dBTP, 703 with clipped runs, and 48 with half a second or more of leading silence (up to 6.1 s). Modern club masters are loud and clip routinely, so these are information for the DJ, not verdicts.
+
 ## Measurements
 
 Measured November 26, 2026 on an Apple M3 MacBook Air (fanless, 4 performance and 4 efficiency cores, macOS 27.2.1, rustc 1.100.0, release build) against `local/music`: 1,151 audio files (366 FLAC, 652 MP3, 69 M4A, 61 WAV, 3 AIFF), 80 hours of audio, all at 44.1 or 48 kHz. Files were only read. The runner lives outside the repository; the numbers come from its per-file timings.

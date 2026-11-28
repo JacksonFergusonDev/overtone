@@ -25,7 +25,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::Path;
 
 use overtone_ffmpeg::Ffmpeg;
-use overtone_model::{QualityReport, QualityVerdict, ReviewStatus, UnixMillis};
+use overtone_model::{LoudnessReport, QualityReport, QualityVerdict, ReviewStatus, UnixMillis};
 
 use source::Source;
 
@@ -81,7 +81,12 @@ pub struct Analysis {
     pub skipped_packets: u64,
     /// Whether the audio was decoded by ffmpeg because Symphonia couldn't.
     pub decoded_by_ffmpeg: bool,
+    /// Loudness, true peak, clipping, and leading silence.
+    pub loudness: LoudnessReport,
 }
+
+/// Samples below this magnitude (-60 dBFS) count as silence.
+const SILENCE_LEVEL: f32 = 0.001;
 
 /// Decodes `path` read-only and analyzes it in one pass.
 ///
@@ -153,6 +158,9 @@ fn analyze_source(
     let mut runs: Vec<u32> = Vec::new();
     let mut clipped_runs = 0_u64;
     let mut mono = Vec::new();
+    let mut meter: Option<ebur128::EbuR128> = None;
+    let mut frames_seen = 0_u64;
+    let mut first_sound: Option<u64> = None;
 
     while let Some(block) = decoder.next_block()? {
         let channels = block.channels;
@@ -176,7 +184,31 @@ fn analyze_source(
                 .clone()
                 .map(|o| spectrogram::SpectrogramBuilder::new(o, w.bins(), w.bin_hz()));
             welch = Some(w);
+            meter = ebur128::EbuR128::new(
+                u32::try_from(channels).unwrap_or(2),
+                sample_rate,
+                ebur128::Mode::I
+                    | ebur128::Mode::LRA
+                    | ebur128::Mode::TRUE_PEAK
+                    | ebur128::Mode::SAMPLE_PEAK,
+            )
+            .ok();
         }
+        if let Some(m) = meter.as_mut() {
+            // A channel-count change mid-stream (rare, broken files) stops
+            // the meter rather than mixing layouts.
+            if m.channels() as usize == channels {
+                let _ = m.add_frames_f32(block.samples);
+            } else {
+                meter = None;
+            }
+        }
+        if first_sound.is_none()
+            && let Some(at) = block.samples.iter().position(|s| s.abs() > SILENCE_LEVEL)
+        {
+            first_sound = Some(frames_seen + (at / channels) as u64);
+        }
+        frames_seen += (block.samples.len() / channels) as u64;
 
         mono.clear();
         let samples = block.samples;
@@ -270,7 +302,56 @@ fn analyze_source(
         clipped_runs,
         skipped_packets: decoder.skipped_packets(),
         decoded_by_ffmpeg: decoder.decoded_by_ffmpeg(),
+        loudness: loudness_report(
+            meter.as_ref(),
+            clipped_runs,
+            first_sound,
+            frames,
+            sample_rate,
+        ),
     })
+}
+
+fn to_db(linear: f64) -> Option<f64> {
+    (linear > 0.0).then(|| 20.0 * linear.log10())
+}
+
+fn loudness_report(
+    meter: Option<&ebur128::EbuR128>,
+    clipped_runs: u64,
+    first_sound: Option<u64>,
+    frames: u64,
+    sample_rate: u32,
+) -> LoudnessReport {
+    let finite = |v: f64| v.is_finite().then_some(v);
+    let peak = |f: &dyn Fn(&ebur128::EbuR128, u32) -> Result<f64, ebur128::Error>| {
+        meter.and_then(|m| {
+            (0..m.channels())
+                .filter_map(|ch| f(m, ch).ok())
+                .fold(None, |acc: Option<f64>, v| {
+                    Some(acc.map_or(v, |a| a.max(v)))
+                })
+                .and_then(to_db)
+        })
+    };
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "a frame count in milliseconds"
+    )]
+    let leading_silence_ms = (first_sound.unwrap_or(frames) as f64 * 1000.0
+        / f64::from(sample_rate.max(1)))
+    .round() as u64;
+    LoudnessReport {
+        integrated_lufs: meter
+            .and_then(|m| m.loudness_global().ok())
+            .and_then(finite),
+        loudness_range_lu: meter.and_then(|m| m.loudness_range().ok()).and_then(finite),
+        true_peak_dbtp: peak(&|m, ch| m.true_peak(ch)),
+        sample_peak_dbfs: peak(&|m, ch| m.sample_peak(ch)),
+        clipped_runs,
+        leading_silence_ms,
+    }
 }
 
 /// HE-AAC with backward-compatible signalling (Apple's encoder writes it)

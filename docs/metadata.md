@@ -39,7 +39,7 @@ Two more sources work once you add credentials:
 - **AcoustID** identifies a track from its sound, even with wrong or missing tags. Get a free application key at acoustid.org/new-application, then run `overtone-cli meta config --acoustid-key <key>`.
 - **Discogs** is the best source for electronic labels, catalog numbers, and styles. Create a personal token at discogs.com/settings/developers, then run `overtone-cli meta config --discogs-token <token>`.
 
-MusicBrainz asks apps for a way to contact them and may answer "busy" otherwise. `overtone-cli meta config --contact <email or URL>` adds yours to Overtone's requests. Lookups send only titles, artists, lengths, and (for AcoustID) an audio fingerprint.
+MusicBrainz is sometimes busy; Overtone waits and retries, so a lookup can take a few seconds per track. MusicBrainz asks apps to say who they are, so Overtone's requests name the Overtone project and its maintainer's contact. `overtone-cli meta config --contact <email or URL>` sends yours instead. Lookups send only titles, artists, lengths, and (for AcoustID) an audio fingerprint, never your files.
 
 ## Review lookup suggestions
 

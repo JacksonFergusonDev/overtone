@@ -136,3 +136,22 @@ mod tests {
         }
     }
 }
+
+/// Loudness and level measurements from the analysis pass. Reports only:
+/// Overtone never changes gain, trims silence, or rewrites audio.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, TS, Deserialize)]
+#[ts(export)]
+pub struct LoudnessReport {
+    /// Integrated loudness (EBU R128), in LUFS. `None` for silence.
+    pub integrated_lufs: Option<f64>,
+    /// Loudness range (EBU Tech 3342), in LU.
+    pub loudness_range_lu: Option<f64>,
+    /// Highest true peak over all channels (4x oversampled), in dBTP.
+    pub true_peak_dbtp: Option<f64>,
+    /// Highest sample peak over all channels, in dBFS.
+    pub sample_peak_dbfs: Option<f64>,
+    /// Runs of at least three consecutive full-scale samples in a channel.
+    pub clipped_runs: u64,
+    /// Silence before the first sound above -60 dBFS, in milliseconds.
+    pub leading_silence_ms: u64,
+}

@@ -25,7 +25,7 @@ Accent folding uses Unicode decomposition (`unicode-normalization`, already in t
 
 `UreqHttp` keeps at least 1.1 s between requests to MusicBrainz and Discogs and 0.35 s to AcoustID, and backs off (2, 4, 8 s) on 429 and 503 answers. A MusicBrainz lookup costs three requests (search, full recording, release labels), so about 3.5 s per track.
 
-The User-Agent is `Overtone/<version>`, plus a contact only when the DJ sets one (`overtone-cli meta config --contact`). MusicBrainz asks clients for a contact and was answering many anonymous requests with 503 "busy" during development; with backoff, lookups still completed. Whether the shipped app should send a default contact (such as the project's URL) is open.
+The User-Agent is `Overtone/<version> ( <contact> )`, as MusicBrainz asks. The contact defaults to the maintainer's address, compiled in from `OVERTONE_DEFAULT_LOOKUP_CONTACT` (set in `.cargo/config.toml` `[env]` or the release build's environment, so the address is configured by the maintainer rather than written into the code), and `overtone-cli meta config --contact` replaces it. During development MusicBrainz answered about half of all requests with 503 "busy" whether or not the User-Agent carried a contact (six requests 5 s apart: three 200s and three 503s, split evenly between the two forms), so overload, not the missing contact, is the cause. The backoff gets lookups through.
 
 ## Verification
 

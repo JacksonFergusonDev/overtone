@@ -543,3 +543,49 @@ fn files_symphonia_reads_never_use_the_fallback() {
     .expect("analyze");
     assert!(!analysis.decoded_by_ffmpeg);
 }
+
+#[test]
+fn measures_loudness_peaks_and_leading_silence() {
+    let temp = TempLibrary::new();
+    let signal = Signal::cd(16_000.0);
+    let mut samples =
+        vec![
+            0.0f32;
+            usize::try_from(signal.sample_rate).expect("rate") * usize::from(signal.channels) * 3
+                / 2
+        ];
+    samples.extend(signal.samples());
+    let path = temp.dir.path().join("late-start.wav");
+    write_samples(&path, &samples, &signal, Fixture::Wav { bits: 24 }).expect("write");
+
+    let loudness = analyze(&path, &AnalysisOptions::default())
+        .expect("analyze")
+        .loudness;
+    assert!(
+        (1_450..=1_550).contains(&loudness.leading_silence_ms),
+        "{loudness:?}"
+    );
+    let lufs = loudness.integrated_lufs.expect("integrated");
+    assert!((-40.0..0.0).contains(&lufs), "{loudness:?}");
+    let sample_peak = loudness.sample_peak_dbfs.expect("sample peak");
+    let true_peak = loudness.true_peak_dbtp.expect("true peak");
+    let max = samples.iter().fold(0f32, |m, s| m.max(s.abs()));
+    let expected = 20.0 * f64::from(max).log10();
+    assert!((sample_peak - expected).abs() < 0.05, "{loudness:?}");
+    assert!(true_peak >= sample_peak - 0.01, "{loudness:?}");
+}
+
+#[test]
+fn silence_has_no_loudness() {
+    let temp = TempLibrary::new();
+    let signal = Signal::cd(16_000.0);
+    let path = temp.dir.path().join("silent.wav");
+    let samples = vec![0.0f32; 44_100 * 2 * 2];
+    write_samples(&path, &samples, &signal, Fixture::Wav { bits: 16 }).expect("write");
+    let loudness = analyze(&path, &AnalysisOptions::default())
+        .expect("analyze")
+        .loudness;
+    assert_eq!(loudness.integrated_lufs, None);
+    assert_eq!(loudness.sample_peak_dbfs, None);
+    assert_eq!(loudness.leading_silence_ms, 2_000);
+}
