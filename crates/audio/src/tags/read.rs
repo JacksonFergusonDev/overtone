@@ -400,6 +400,16 @@ fn id3_user_text(tag: &Id3v2Tag, description: &str) -> Option<String> {
     })
 }
 
+/// `3/12` from a Vorbis number and its separate total. lofty splits a
+/// `TRACKNUMBER=3/12` into the two on read, so this also restores that.
+fn with_total(number: Option<String>, total: Option<String>) -> Option<String> {
+    let number = number?;
+    Some(match total {
+        Some(total) if !number.contains('/') => format!("{number}/{total}"),
+        _ => number,
+    })
+}
+
 fn vorbis_tags(tag: &VorbisComments) -> TrackTags {
     let first = |keys: &[&str]| keys.iter().find_map(|key| clean(tag.get(key)));
     TrackTags {
@@ -422,8 +432,11 @@ fn vorbis_tags(tag: &VorbisComments) -> TrackTags {
         catalog_number: first(&["CATALOGNUMBER"]),
         isrc: first(&["ISRC"]),
         release_date: first(&["RELEASEDATE"]),
-        track_number: first(&["TRACKNUMBER"]),
-        disc_number: first(&["DISCNUMBER"]),
+        track_number: with_total(
+            first(&["TRACKNUMBER"]),
+            first(&["TRACKTOTAL", "TOTALTRACKS"]),
+        ),
+        disc_number: with_total(first(&["DISCNUMBER"]), first(&["DISCTOTAL", "TOTALDISCS"])),
     }
 }
 

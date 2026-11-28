@@ -247,14 +247,17 @@ fn restore_one(
     }
     let path = Path::new(&track.path);
     let tags = read_metadata(path).map_err(core)?.tags;
-    let outcome = if edits
+    // Only fields that differ from their originals are rewritten, so the
+    // rest keep their exact bytes.
+    let changed: Vec<FieldEdit> = edits
         .iter()
-        .all(|e| reads_as(e.field, &tags, e.value.as_deref()))
-    {
-        // Already back to the originals (or never changed): nothing to write.
+        .filter(|e| !reads_as(e.field, &tags, e.value.as_deref()))
+        .cloned()
+        .collect();
+    let outcome = if changed.is_empty() {
         WriteOutcome::Unchanged
     } else {
-        write_fields(roots, path, &edits).map_err(core)?
+        write_fields(roots, path, &changed).map_err(core)?
     };
     refresh(library, &track)?;
     for edit in &edits {

@@ -41,7 +41,7 @@ Decided November 26, 2026; the writer was replaced by the byte-level splicer on 
 
 ## Field writes
 
-`tags::write_fields` writes the other fields the scanner reads, for the DJ's own values and accepted lookup values (`overtone_core::writeback`, `overtone-cli meta apply`): title, artist, album, album artist, remixer, label, genre, year, BPM, key, and grouping. Comment stays with `write_comment`, and fields the scanner doesn't read (catalog number, ISRC, release date, track and disc numbers, store genre) aren't written, because a re-read couldn't check them.
+`tags::write_fields` writes the other fields the scanner reads, for the DJ's own values and accepted lookup values (`overtone_core::writeback`, `overtone-cli meta apply`): title, artist, album, album artist, remixer, label, genre, year, BPM, key, grouping, catalog number, ISRC, release date, and track and disc numbers. Comment stays with `write_comment`, and store genre stays in Overtone, because no tag the scanner reads holds it.
 
 - **Same pipeline.** The splicer takes an `Editor` (the frames of the new ID3 tag, the entries of the new Vorbis comment); `CommentEdit` and the field editor share it, `prepare`, `edit_via_copy`, the chunk, block, trailer, and payload checks, and the re-read.
 - **Target the frame the scanner reads.** Each field has a priority list of ID3 frames and Vorbis keys, mirroring the reader: year is `TDRC`, `TYER`, `TDOR`, `TORY` and `DATE`, `YEAR`, `ORIGINALDATE`; grouping is `GRP1`, `TIT1`; label is `TPUB` and `LABEL`, `ORGANIZATION`, `PUBLISHER`; and so on. A value replaces the first frame or key that holds a usable value (for Vorbis, the first entry of that key), else the first one present, else a new standard one (`TDRC` in v2.4, `TYER` in v2.3, the first Vorbis key). Aliases and later duplicates are left alone, so other software keeps reading what it read before. Clearing a field removes every frame or key it could be read from.
@@ -53,6 +53,17 @@ Decided November 26, 2026; the writer was replaced by the byte-level splicer on 
 The raw walker's text decoder treats iTunes' `GRP1`, `MVNM`, and `MVIN` as text frames, as lofty does; before, a `GRP1` grouping looked empty to the planner, which picked `TIT1`, and the re-read check refused the write.
 
 On November 27, 2026, 223 `cp -c` clones from `local/music` (120 MP3, 60 FLAC, 40 WAV, 3 AIFF) got a new label with non-Latin-1 text, year, and grouping, plus a cleared key on every fourth and a changed title on every fifth file. `meta apply --write` wrote 217 in 11.7 s and refused 6 (5 WAVs with two ID3 chunks, 1 MP3 whose `UFID` frame lofty can't parse). A Python check sharing no code with Overtone (its own ID3 and FLAC walkers, plus an ffmpeg MD5 of the decoded audio) found decoded audio identical in all 223 files, all 1,112 `GEOB` frames and 473 `SERATO_*` fields unchanged, every other frame and Vorbis entry unchanged, the refused files untouched, and the new values where the scanner reads them. A rescan reported every file unchanged, and `meta restore --write` returned the tags of all 217 to exactly what the first scan read.
+
+### Release details
+
+Reader version 2 (migration `0008_more_tags.sql`) reads catalog number, ISRC, release date, and track and disc numbers, so field writes can be re-read and lookups can tell when they would replace a value.
+
+- **ID3:** catalog number is `TXXX:CATALOGNUMBER` (the description matched case-insensitively and kept as stored when replaced), ISRC `TSRC`, track `TRCK`, disc `TPOS`, release date `TDRL`, else `TXXX:RELEASEDATE`. New release dates go to `TDRL` in v2.4 and `TXXX:RELEASEDATE` in v2.3, which has no `TDRL`. The planner keys `TXXX` frames by description, so other `TXXX` frames (Serato's among them) pass the ordinary frame comparison. A release date must be `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`, the forms an ID3v2.4 timestamp holds.
+- **Vorbis:** `CATALOGNUMBER`, `ISRC`, `RELEASEDATE`, `TRACKNUMBER`, `DISCNUMBER`. lofty splits `TRACKNUMBER=3/12` into a number and `TRACKTOTAL` on read, so the reader joins the number with `TRACKTOTAL` or `TOTALTRACKS` (`DISCTOTAL` or `TOTALDISCS`), and the writer stores `3/12` as `TRACKNUMBER=3` plus `TRACKTOTAL=12`, removing the total when the new value has none. The first run, before this, wrote `TRACKNUMBER=12/12` and the re-read check refused all 40 FLACs untouched.
+- **MP4 (read only):** freeform `CATALOGNUMBER`, `ISRC`, `RELEASEDATE`, and `trkn`/`disk` as `3/12`.
+- **Restore** rewrites only fields that no longer read as their originals. lofty reads track numbers as integers, so a restored `TRACKNUMBER=01` comes back as `1`; Overtone reads both the same.
+
+On November 27, 2026, 147 `cp -c` clones (80 MP3, 40 FLAC, 25 WAV, 2 AIFF) got all five fields (a non-Latin-1 catalog number, ISRC cleared on every sixth). 144 were written; the same 3 structural refusals as before were left untouched. The independent Python check found decoded audio identical in all 147, all 774 `GEOB` frames and 299 `SERATO_*` fields unchanged, every frame and Vorbis entry outside the five fields unchanged, and the new values in `TXXX:CATALOGNUMBER`, `TPOS`, `TDRL` (v2.4) or `TXXX:RELEASEDATE` (v2.3), and the split Vorbis keys. A rescan reported every file unchanged, and `meta restore --write` put back every original value, apart from the zero-padding noted above in 14 FLACs.
 
 ## Spike results
 

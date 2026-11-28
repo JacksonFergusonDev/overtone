@@ -65,6 +65,9 @@ struct Spec {
     id3_new_v3: &'static str,
     id3_new_v4: &'static str,
     vorbis: &'static [&'static str],
+    /// For track and disc numbers: the Vorbis keys holding the total, which
+    /// Vorbis keeps apart from the number (`TRACKNUMBER=3`, `TRACKTOTAL=12`).
+    vorbis_totals: &'static [&'static str],
 }
 
 fn spec(field: MetadataField) -> Option<Spec> {
@@ -75,6 +78,7 @@ fn spec(field: MetadataField) -> Option<Spec> {
             id3_new_v3: id3[0],
             id3_new_v4: id3[0],
             vorbis,
+            vorbis_totals: &[],
         }
     }
     Some(match field {
@@ -94,6 +98,7 @@ fn spec(field: MetadataField) -> Option<Spec> {
             id3_new_v3: "TYER",
             id3_new_v4: "TDRC",
             vorbis: &["DATE", "YEAR", "ORIGINALDATE"],
+            vorbis_totals: &[],
         },
         MetadataField::Bpm => Spec {
             kind: Kind::Bpm,
@@ -101,6 +106,7 @@ fn spec(field: MetadataField) -> Option<Spec> {
             id3_new_v3: "TBPM",
             id3_new_v4: "TBPM",
             vorbis: &["BPM", "TEMPO"],
+            vorbis_totals: &[],
         },
         MetadataField::Grouping => Spec {
             kind: Kind::Text,
@@ -108,17 +114,25 @@ fn spec(field: MetadataField) -> Option<Spec> {
             id3_new_v3: "TIT1",
             id3_new_v4: "TIT1",
             vorbis: &["GROUPING"],
+            vorbis_totals: &[],
         },
         MetadataField::CatalogNumber => text(&["TXXX:CATALOGNUMBER"], &["CATALOGNUMBER"]),
         MetadataField::Isrc => text(&["TSRC"], &["ISRC"]),
-        MetadataField::TrackNumber => text(&["TRCK"], &["TRACKNUMBER"]),
-        MetadataField::DiscNumber => text(&["TPOS"], &["DISCNUMBER"]),
+        MetadataField::TrackNumber => Spec {
+            vorbis_totals: &["TRACKTOTAL", "TOTALTRACKS"],
+            ..text(&["TRCK"], &["TRACKNUMBER"])
+        },
+        MetadataField::DiscNumber => Spec {
+            vorbis_totals: &["DISCTOTAL", "TOTALDISCS"],
+            ..text(&["TPOS"], &["DISCNUMBER"])
+        },
         MetadataField::ReleaseDate => Spec {
             kind: Kind::Date,
             id3: &["TDRL", "TXXX:RELEASEDATE"],
             id3_new_v3: "TXXX:RELEASEDATE",
             id3_new_v4: "TDRL",
             vorbis: &["RELEASEDATE"],
+            vorbis_totals: &[],
         },
         _ => return None,
     })
@@ -242,7 +256,16 @@ pub(crate) struct VorbisPlan {
     /// Every alias key of every edited field, upper case.
     pub edited_keys: Vec<&'static str>,
     /// For each edit: its aliases, kind, and the value a reader must find.
-    checks: Vec<(&'static [&'static str], Kind, Option<String>)>,
+    checks: Vec<VorbisCheck>,
+}
+
+/// What a reader must find for one edited field after the write.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct VorbisCheck {
+    aliases: &'static [&'static str],
+    totals: &'static [&'static str],
+    kind: Kind,
+    value: Option<String>,
 }
 
 /// Everything a field write changes, planned from the original's layout.
@@ -367,6 +390,30 @@ fn read_vorbis(entries: &[Vec<u8>], aliases: &[&str], kind: Kind) -> Option<Stri
     })
 }
 
+/// Points the first usable entry among `aliases` (else the first present,
+/// else a new `aliases[0]` entry) at `text`.
+fn set_entry(entries: &mut Vec<Vec<u8>>, aliases: &[&str], kind: Kind, text: &str) {
+    let first = |entries: &[Vec<u8>], key: &str| entries.iter().position(|e| has_key(e, key));
+    let target = aliases
+        .iter()
+        .find_map(|key| first(entries, key).filter(|i| accepted(kind, &vorbis_value(&entries[*i]))))
+        .or_else(|| aliases.iter().find_map(|key| first(entries, key)));
+    let entry = |key: &[u8]| {
+        let mut entry = key.to_vec();
+        entry.push(b'=');
+        entry.extend_from_slice(text.as_bytes());
+        entry
+    };
+    match target {
+        Some(i) => entries[i] = entry(vorbis_key(&entries[i])),
+        None => entries.push(entry(aliases[0].as_bytes())),
+    }
+}
+
+fn remove_entries(entries: &mut Vec<Vec<u8>>, keys: &[&str]) {
+    entries.retain(|e| !keys.iter().any(|key| has_key(e, key)));
+}
+
 fn plan_vorbis(existing: Option<&VorbisComment>, edits: &[(Spec, Option<String>)]) -> VorbisPlan {
     let original = existing.map_or_else(Vec::new, |vc| vc.entries.clone());
     let mut entries = original.clone();
@@ -374,27 +421,30 @@ fn plan_vorbis(existing: Option<&VorbisComment>, edits: &[(Spec, Option<String>)
     let mut checks = Vec::new();
     for (spec, value) in edits {
         edited_keys.extend_from_slice(spec.vorbis);
-        checks.push((spec.vorbis, spec.kind, value.clone()));
+        edited_keys.extend_from_slice(spec.vorbis_totals);
+        checks.push(VorbisCheck {
+            aliases: spec.vorbis,
+            totals: spec.vorbis_totals,
+            kind: spec.kind,
+            value: value.clone(),
+        });
         let Some(text) = value else {
-            entries.retain(|e| !spec.vorbis.iter().any(|key| has_key(e, key)));
+            remove_entries(&mut entries, spec.vorbis);
+            remove_entries(&mut entries, spec.vorbis_totals);
             continue;
         };
-        let first = |key: &str| entries.iter().position(|e| has_key(e, key));
-        let target = spec
-            .vorbis
-            .iter()
-            .find_map(|key| first(key).filter(|i| accepted(spec.kind, &vorbis_value(&entries[*i]))))
-            .or_else(|| spec.vorbis.iter().find_map(|key| first(key)));
-        let entry = |key: &[u8]| {
-            let mut entry = key.to_vec();
-            entry.push(b'=');
-            entry.extend_from_slice(text.as_bytes());
-            entry
+        if spec.vorbis_totals.is_empty() {
+            set_entry(&mut entries, spec.vorbis, spec.kind, text);
+            continue;
+        }
+        let (number, total) = match text.split_once('/') {
+            Some((n, t)) => (n.trim(), Some(t.trim()).filter(|t| !t.is_empty())),
+            None => (text.as_str(), None),
         };
-        if let Some(i) = target {
-            entries[i] = entry(vorbis_key(&entries[i]));
-        } else {
-            entries.push(entry(spec.vorbis[0].as_bytes()));
+        set_entry(&mut entries, spec.vorbis, spec.kind, number);
+        match total {
+            Some(total) => set_entry(&mut entries, spec.vorbis_totals, Kind::Text, total),
+            None => remove_entries(&mut entries, spec.vorbis_totals),
         }
     }
     VorbisPlan {
@@ -552,8 +602,15 @@ pub(crate) fn check_vorbis(
             "the entries differ from the planned edit".into(),
         ));
     }
-    for (aliases, kind, value) in &plan.checks {
-        let found = read_vorbis(&after.entries, aliases, *kind);
+    for check in &plan.checks {
+        let (aliases, value) = (check.aliases, &check.value);
+        let found =
+            read_vorbis(&after.entries, aliases, check.kind).map(|number| {
+                match read_vorbis(&after.entries, check.totals, Kind::Text) {
+                    Some(total) if !number.contains('/') => format!("{number}/{total}"),
+                    _ => number,
+                }
+            });
         if found != *value {
             return Err((
                 "field value",

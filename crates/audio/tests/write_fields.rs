@@ -412,6 +412,38 @@ fn flac_release_details_and_bad_dates() {
             "RELEASEDATE=2021"
         ]
     );
+    write_fields(
+        &roots(),
+        &path,
+        &[
+            edit(MetadataField::TrackNumber, Some("5/12")),
+            edit(MetadataField::DiscNumber, Some("1/2")),
+        ],
+    )
+    .expect("write totals");
+    let entries = vorbis_entries(&path);
+    for expected in [
+        "TRACKNUMBER=5",
+        "TRACKTOTAL=12",
+        "DISCNUMBER=1",
+        "DISCTOTAL=2",
+    ] {
+        assert!(entries.iter().any(|e| e == expected), "{entries:?}");
+    }
+    let tags = read_metadata(&path).expect("read").tags;
+    assert_eq!(tags.track_number.as_deref(), Some("5/12"));
+    assert_eq!(tags.disc_number.as_deref(), Some("1/2"));
+    write_fields(
+        &roots(),
+        &path,
+        &[edit(MetadataField::TrackNumber, Some("6"))],
+    )
+    .expect("drop total");
+    assert!(
+        !vorbis_entries(&path)
+            .iter()
+            .any(|e| e.starts_with("TRACKTOTAL="))
+    );
     match write_fields(
         &roots(),
         &path,

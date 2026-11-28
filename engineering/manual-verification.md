@@ -88,6 +88,7 @@ Do this on clones: `cp -c` a few analysed files (an ID3v2.3 MP3, an ID3v2.4 MP3,
 - [ ] Traktor: after Import Metadata from Files, the new values show, cues and grid are intact, and it doesn't reanalyze.
 - [ ] A FLAC whose label lives in `ORGANIZATION` (or `PUBLISHER`) shows the new label in each app; note any app that reads `LABEL` only.
 - [ ] Non-ASCII text (for example `Écoute Records ✓`) shows correctly in all three apps, including in ID3v2.3 files, where Overtone switches the frame to UTF-16.
+- [ ] Catalog number, ISRC, release date, and track and disc numbers written by `ot meta apply --write` show in each app that displays them; note which ones each app reads. In particular, check that a FLAC's `3/12` track number shows as track 3 of 12, and that an ID3v2.3 release date in `TXXX:RELEASEDATE` is read by anything at all.
 - [ ] `ot meta restore --write` brings the old values back in every app.
 - [ ] In the desktop app, the inspector's dot and **Write to file…** appear after editing a field, the confirm dialog lists the change, and **Restore the file's original values** appears after writing.
 
