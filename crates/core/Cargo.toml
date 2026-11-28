@@ -9,6 +9,7 @@ license.workspace = true
 [dependencies]
 overtone-audio.workspace = true
 overtone-ffmpeg.workspace = true
+overtone-metadata.workspace = true
 overtone-fs.workspace = true
 overtone-library.workspace = true
 overtone-model.workspace = true

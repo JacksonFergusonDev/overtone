@@ -13,6 +13,7 @@
 //! Nothing here deletes, moves, or rewrites audio.
 
 pub mod decode;
+pub mod fingerprint;
 mod source;
 mod spectrogram;
 mod spectrum;

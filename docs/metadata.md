@@ -26,6 +26,21 @@ You can set title, artist, album, album_artist, remixer, label, genre, year, bpm
 
 Values you set live in Overtone's library for now. Writing them into your audio files and DJ software exports comes in a later release.
 
+## Look tracks up online
+
+```bash
+overtone-cli meta lookup
+```
+
+Overtone searches MusicBrainz for each track by title, artist, and length, and adds what the best match proposes (album, release date, label, catalog number, ISRC, track number) as suggestions. Without track ids it looks up tracks it hasn't searched yet; name tracks to look up just those, and `--provider musicbrainz` (or `acoustid`, `discogs`) to use one source.
+
+Two more sources work once you add credentials:
+
+- **AcoustID** identifies a track from its sound, even with wrong or missing tags. Get a free application key at acoustid.org/new-application, then run `overtone-cli meta config --acoustid-key <key>`.
+- **Discogs** is the best source for electronic labels, catalog numbers, and styles. Create a personal token at discogs.com/settings/developers, then run `overtone-cli meta config --discogs-token <token>`.
+
+MusicBrainz asks apps for a way to contact them and may answer "busy" otherwise. `overtone-cli meta config --contact <email or URL>` adds yours to Overtone's requests. Lookups send only titles, artists, lengths, and (for AcoustID) an audio fingerprint.
+
 ## Review lookup suggestions
 
 Lookups never change a track by themselves. What they find waits as a suggestion until you decide:

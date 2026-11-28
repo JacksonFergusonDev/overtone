@@ -14,6 +14,7 @@ use ts_rs::TS;
 
 pub mod audit;
 pub mod integrity;
+pub mod lookup;
 pub mod rekordbox_db;
 pub mod scan;
 pub mod sync;

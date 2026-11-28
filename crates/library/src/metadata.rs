@@ -383,6 +383,35 @@ impl Library {
         Ok(())
     }
 
+    /// Records that `track` was looked up with `provider`.
+    pub fn record_lookup(
+        &self,
+        track: TrackId,
+        provider: &str,
+        matched: bool,
+    ) -> Result<(), LibraryError> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO lookup_runs (track_id, provider, looked_up_at, matched) \
+             VALUES (?1, ?2, ?3, ?4)",
+            params![track.0, provider, now_millis(), i64::from(matched)],
+        )?;
+        Ok(())
+    }
+
+    /// Present tracks never looked up with `provider`.
+    pub fn tracks_needing_lookup(&self, provider: &str) -> Result<Vec<TrackId>, LibraryError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT t.id FROM tracks t \
+             LEFT JOIN lookup_runs l ON l.track_id = t.id AND l.provider = ?1 \
+             WHERE t.missing_since IS NULL AND l.track_id IS NULL ORDER BY t.path",
+        )?;
+        let ids = stmt
+            .query_map([provider], |row| row.get::<_, i64>(0))?
+            .map(|id| id.map(TrackId))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(ids)
+    }
+
     /// Tracks with at least one pending suggestion.
     pub fn tracks_with_pending_suggestions(&self) -> Result<Vec<TrackId>, LibraryError> {
         let mut stmt = self.conn.prepare(
@@ -616,6 +645,19 @@ mod tests {
             )
             .expect("re-add");
         assert_eq!(again, 0);
+    }
+
+    #[test]
+    fn remembers_which_tracks_were_looked_up() {
+        let (lib, id) = library_with_track(TrackTags::default());
+        assert_eq!(lib.tracks_needing_lookup("musicbrainz").expect("ids"), [id]);
+        lib.record_lookup(id, "musicbrainz", false).expect("record");
+        assert!(
+            lib.tracks_needing_lookup("musicbrainz")
+                .expect("ids")
+                .is_empty()
+        );
+        assert_eq!(lib.tracks_needing_lookup("discogs").expect("ids"), [id]);
     }
 
     #[test]

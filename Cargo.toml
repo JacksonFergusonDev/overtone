@@ -73,16 +73,20 @@ rayon = "1.12"
 png = "0.18.1"
 quick-xml = "0.42"
 realfft = "3.5.1"
+regex = "1.12"
 reflink-copy = "0.1.33"
 rusqlite = { version = "0.43", features = ["bundled-sqlcipher-vendored-openssl", "backup", "fallible_uint"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+strsim = "0.11.1"
 sysinfo = { version = "0.40", default-features = false, features = ["system"] }
 # Pinned: 0.6 is a young API rework; re-run the corpus measurements before upgrading.
 symphonia = { version = "=0.6.1", default-features = false, features = ["flac", "wav", "aiff", "alac", "mp3", "aac", "isomp4", "pcm", "id3v1", "id3v2", "ape", "opt-simd"] }
 tempfile = "3.27"
 thiserror = "2"
 unicode-normalization = "0.1"
+ureq = { version = "3.5", default-features = false, features = ["rustls", "gzip", "json"] }
+rusty-chromaprint = "0.3.0"
 uuid = { version = "1.29", features = ["v4"] }
 ts-rs = { version = "12.0.1", features = ["no-serde-warnings"] }
 walkdir = "2.5.1"
@@ -97,4 +101,5 @@ overtone-core = { path = "crates/core" }
 overtone-model = { path = "crates/model" }
 overtone-fs = { path = "crates/fs" }
 overtone-ffmpeg = { path = "crates/ffmpeg" }
+overtone-metadata = { path = "crates/metadata" }
 overtone-testkit = { path = "crates/testkit" }

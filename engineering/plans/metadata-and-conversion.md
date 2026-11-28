@@ -12,7 +12,7 @@ The order matters. Provenance comes before any lookup so fetched values never mi
 | 2 | Per-field metadata provenance | nothing | Done Nov 27: schema 3, library API, `overtone-cli meta`; desktop UI and writing values to files come with step 5 |
 | 3 | ffmpeg foundation (decision, build, wrapper crate) | nothing | Done Nov 27: `overtone-ffmpeg` and [decision](../decisions/ffmpeg.md); building the bundled binary moves to release packaging |
 | 4 | ffmpeg fallback decoder and integrity check in the audit | 3 | Done Nov 27: analyzer version 2, `audit --integrity`, `ls --damaged`; desktop UI pending |
-| 5 | Metadata lookup (MusicBrainz, Discogs, then AcoustID) | 2, and 4 for AcoustID | Not started |
+| 5 | Metadata lookup (MusicBrainz, Discogs, then AcoustID) | 2, and 4 for AcoustID | Done Nov 27: `overtone-metadata`, `meta lookup` and `meta config` ([decision](../decisions/metadata-lookup.md)); desktop UI and writing values to files pending |
 | 6 | Loudness, true peak, and leading-silence reports | 4 optional | Not started |
 | 7 | Export copies (downsampled and lossy) | 3 | Not started |
 | 8a | Lossless conversion: audio, verification, tags, Serato tags | 1, 3 | Not started |
@@ -125,4 +125,5 @@ Steps 2 and 4 shipped in the CLI first. The desktop app still needs: field sourc
 ## Open questions
 
 - Which DJ app step 8b supports first.
+- Whether lookups send a default contact in the User-Agent (such as the project URL); MusicBrainz throttles anonymous clients ([metadata lookup](../decisions/metadata-lookup.md#rate-limits-and-the-user-agent)).
 - How the CLI gets ffmpeg when installed through Homebrew (a formula dependency on `ffmpeg` is the likely answer). The lookup order already covers a system ffmpeg.

@@ -42,6 +42,16 @@ Render a spectrogram for any track with `ot spectrogram <id or path> --out <file
 - [ ] Integrity check: run `ot audit --integrity`, then `ot ls --damaged`. On `local/` expect about 16 tracks. Listen to the 14 MP3s whose `ot show` lists `bits_left` errors and note whether any audibly glitch; if none do, those warnings should become edge-only or ignored. Listen to the one MP3 with corrupt frames and confirm the damage is audible.
 - [ ] Re-run `ot audit --all` after reviewing: your Verified OK and replace decisions are kept.
 
+## Metadata lookup
+
+Use a scratch library (`OVERTONE_LIBRARY=/tmp/lookup.sqlite`) over a few clones from `local/music`.
+
+- [ ] `ot meta lookup <tracks>` with MusicBrainz only: for well-tagged tracks, the suggested album, label, and release date are the original release, not a compilation or DJ mix. Note any wrong matches.
+- [ ] Add an AcoustID key (`ot meta config --acoustid-key`), then look up a track with deliberately wrong tags: AcoustID still identifies it.
+- [ ] Add a Discogs token and look up a few electronic releases: labels, catalog numbers, and `store_genre` styles are right.
+- [ ] A wrong key or token reports that the provider refused it and the run carries on with the others.
+- [ ] Accept and reject a few suggestions; `ot meta show` shows accepted values as "lookup: <provider>", and rejected ones don't come back on the next lookup.
+
 ## Tag writing (Comment hashtags)
 
 Do this on clones, never originals: `cp -c -R local/music /tmp/tag-test`, then `ot scan /tmp/tag-test`, add vibes with `ot vibe add <vibe> <tracks…>`, preview with `ot tag mirror`, and write with `ot tag mirror --write`. Include at least one ID3v2.3 MP3, one ID3v2.4 MP3, a FLAC, a WAV, and an AIFF, each previously analyzed in the DJ app (so it carries cues and beatgrids).
