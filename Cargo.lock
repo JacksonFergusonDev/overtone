@@ -2798,6 +2798,7 @@ name = "overtone-core"
 version = "0.1.0"
 dependencies = [
  "overtone-audio",
+ "overtone-ffmpeg",
  "overtone-fs",
  "overtone-library",
  "overtone-model",

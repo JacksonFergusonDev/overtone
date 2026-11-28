@@ -17,4 +17,12 @@ cancelled: boolean, verdicts: VerdictCounts,
 /**
  * Tracks now flagged Warning or Suspect, in the order they finished.
  */
-flagged: Array<TrackId>, analyzer_version: number, elapsed_ms: number, };
+flagged: Array<TrackId>, analyzer_version: number, elapsed_ms: number, 
+/**
+ * Tracks Symphonia couldn't decode that ffmpeg analyzed instead.
+ */
+decoded_with_ffmpeg: number, 
+/**
+ * Whether ffmpeg was available as a fallback decoder.
+ */
+ffmpeg_available: boolean, };

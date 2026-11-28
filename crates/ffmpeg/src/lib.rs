@@ -133,7 +133,19 @@ impl Ffmpeg {
     /// Decodes the whole first audio stream and reports every error ffmpeg
     /// finds (bad frame CRCs, broken bitstreams, truncation).
     pub fn check_integrity(&self, input: &Path) -> Result<IntegrityReport, FfmpegError> {
-        run::check_integrity(self, input)
+        run::check_integrity(self, input, None)
+    }
+
+    /// Like [`Self::check_integrity`], but only `length` of audio starting
+    /// at `start`. Used to tell damage inside the music from junk at the
+    /// very start or end of a file.
+    pub fn check_integrity_window(
+        &self,
+        input: &Path,
+        start: std::time::Duration,
+        length: std::time::Duration,
+    ) -> Result<IntegrityReport, FfmpegError> {
+        run::check_integrity(self, input, Some((start, length)))
     }
 
     /// Prepares a job (an encode or remux) with progress reporting.

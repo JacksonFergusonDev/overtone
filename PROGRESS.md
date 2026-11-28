@@ -8,7 +8,7 @@ The maintainer handoff: where things stand, what's open, and what's next. Update
 
 - Version `0.1.0` (unreleased). All five roadmap phases are implemented: the CLI, quality analysis, sync to Serato, Rekordbox (XML and My Tags in `master.db`), and Traktor, and the desktop app. Phase 6 (metadata provenance and lookup, ffmpeg, and format conversion) is planned and not started ([Phase 6 plan](engineering/plans/metadata-and-conversion.md)). None of it has been checked inside real DJ apps or in a real app window yet (see Unresolved).
 - **Library and scanning:** in-place indexing of library folders, incremental rescans, missing-file tracking, and audio-only BLAKE3 hashes for duplicate detection ([content hashing](engineering/decisions/content-hashing.md)). Tag and stream property reading via `lofty` 0.25.5. On the `local/` testing ground, 1,151 files scan in about 9 s cold and rescan in milliseconds.
-- **Quality analysis:** single-pass `symphonia` decode with Welch-averaged spectra, cutoff wall detection, verdicts, waveform peaks, and spectrogram PNGs ([audio quality analysis](engineering/decisions/audio-quality-analysis.md)). On `local/`: 1,092 pass, 39 warning, 15 suspect, 5 inconclusive, in 100 s on 4 threads.
+- **Quality analysis:** analyzer version 2: single-pass `symphonia` decode, with ffmpeg as a fallback decoder and an opt-in ffmpeg integrity check (`audit --integrity`), with Welch-averaged spectra, cutoff wall detection, verdicts, waveform peaks, and spectrogram PNGs ([audio quality analysis](engineering/decisions/audio-quality-analysis.md)). On `local/`: 1,092 pass, 39 warning, 15 suspect, 5 inconclusive, in 100 s on 4 threads.
 - **Tag writing:** verified Comment writes for MP3, WAV, AIFF, and FLAC by a byte-level splicer (Phase 6 step 1) that keep Serato GEOB, Traktor PRIV, and artwork byte-identical and preserve the ID3 version; refuses files its walkers can't fully account for ([tag writing](engineering/decisions/tag-writing.md)). M4A writes are deferred.
 - **Serato sync:** lossless `.crate` codec (all 140 sample crates round-trip byte-identically), dry-run plans, backups, and atomic writes under an `Overtone` root crate.
 - **Rekordbox XML:** `rekordbox.xml` written with `quick-xml` (not `rbox`, see [DJ software sync](engineering/decisions/dj-software-sync.md#rekordbox-xml-written-with-quick-xml-not-rbox)): an `Overtone` playlist folder mirroring the vibe tree, stable TrackIDs, percent-encoded `Location` URIs from raw path bytes, no cue or beatgrid data, backups, and unchanged-file detection.
@@ -22,7 +22,8 @@ The maintainer handoff: where things stand, what's open, and what's next. Update
 ## Unresolved
 
 - **Manual checks pending:** real DJ app behavior (Serato DJ 4 accepting written crates, Rekordbox importing the XML and opening a database with Overtone's My Tags, Traktor loading the patched collection, cues surviving Comment writes), listening to the 15 flagged suspects, and the desktop app in a real window (WKWebView playback of FLAC and AIFF, layout at 840x560, keyboard flow). The UI has only been exercised in a browser against the mock backend. All of them are in the [manual verification checklist](engineering/manual-verification.md).
-- **Detection limits:** LAME V0 and 256k AAC transcodes can't be detected from the spectrum alone; an MDCT/frame-alignment detector would be needed. HE-AAC files can't be decoded by symphonia and are recorded as Unchecked. Phase 6 step 4 adds an ffmpeg fallback decoder for them.
+- **Detection limits:** LAME V0 and 256k AAC transcodes can't be detected from the spectrum alone; an MDCT/frame-alignment detector would be needed. HE-AAC, Opus, WMA, and files Symphonia can't read are analyzed through ffmpeg when it's installed (analyzer version 2).
+- **Integrity check findings:** on `local/`, 16 files have decode errors inside the music, 14 of them MP3s with `bits_left` warnings whose audibility is unknown (listening check on the checklist).
 - **Tag write refusals:** after the byte-level splicer, 15 of 1,082 writable files on `local/` are still refused: 7 WAV files with two ID3 chunks, 3 unsynchronised and 1 experimental MP3 tag, and 4 files lofty can't read at all ([tag writing](engineering/decisions/tag-writing.md#files-a-write-refuses)).
 - DJ app running detection uses `sysinfo` process matching. The Rekordbox, `rekordboxAgent`, and Traktor Pro 3 process names are unverified against real installs.
 - **Unverified sync assumptions:** how Rekordbox Cloud Library Sync treats rows Overtone adds, and Traktor's mapping of `/Volumes/<Drive>` paths to `VOLUME`. Both are on the checklist.
@@ -35,8 +36,8 @@ How the work runs: before each feature, a research subagent surveys crates; cont
 
 Phase 6 is the current work. Follow the [Phase 6 plan](engineering/plans/metadata-and-conversion.md) in order and mark each step done there and here as it lands. Its key rules: provenance (step 2) lands before any lookup (step 5) so fetched values never mix with the DJ's own; OneTagger is a source of ported ideas and code, not a dependency; ffmpeg runs as a bundled child process and Symphonia verifies its output.
 
-1. Step 4: ffmpeg fallback decoder and integrity check in the audit.
-2. Step 5: metadata lookup (MusicBrainz, Discogs, then AcoustID).
+1. Step 5: metadata lookup (MusicBrainz, Discogs, then AcoustID).
+2. Desktop surfaces for Phase 6: field sources and suggestion review, an integrity check action, and integrity results in the inspector ([plan](engineering/plans/metadata-and-conversion.md#desktop-surfaces-for-phase-6)).
 3. Step 6: loudness, true peak, and leading-silence reports.
 4. Step 7: export copies (downsampled and lossy).
 5. Step 8a: lossless WAV/AIFF to FLAC conversion with sample-level verification, tags, and Serato tag translation.

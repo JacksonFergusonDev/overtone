@@ -29,12 +29,18 @@ impl IntegrityReport {
 pub(crate) fn check_integrity(
     ffmpeg: &Ffmpeg,
     input: &Path,
+    window: Option<(Duration, Duration)>,
 ) -> Result<IntegrityReport, FfmpegError> {
-    let output = ffmpeg
-        .command()
-        .args(["-err_detect", "crccheck+bitstream+buffer"])
-        .arg("-i")
-        .arg(input)
+    let mut command = ffmpeg.command();
+    command.args(["-err_detect", "crccheck+bitstream+buffer"]);
+    if let Some((start, _)) = window {
+        command.args(["-ss", &format!("{:.3}", start.as_secs_f64())]);
+    }
+    command.arg("-i").arg(input);
+    if let Some((_, length)) = window {
+        command.args(["-t", &format!("{:.3}", length.as_secs_f64())]);
+    }
+    let output = command
         .args(["-map", "0:a:0", "-f", "null", "-"])
         .stdout(Stdio::null())
         .output()
@@ -45,13 +51,38 @@ pub(crate) fn check_integrity(
     let errors: Vec<String> = String::from_utf8_lossy(&output.stderr)
         .lines()
         .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .map(str::to_string)
+        .filter(|line| !line.is_empty() && !is_noise(line))
+        .map(strip_addresses)
         .collect();
     Ok(IntegrityReport {
         aborted: !output.status.success(),
         errors,
     })
+}
+
+/// Lines that say nothing about the audio: embedded artwork that fails to
+/// parse (ffmpeg probes it even when only audio is mapped), and repeat
+/// counters.
+fn is_noise(line: &str) -> bool {
+    const IMAGE_CODECS: &[&str] = &["[png", "[mjpeg", "[bmp", "[gif", "[tiff", "[webp"];
+    IMAGE_CODECS.iter().any(|prefix| line.starts_with(prefix))
+        || line.starts_with("Last message repeated")
+}
+
+/// Drops the memory addresses ffmpeg puts in its log prefixes
+/// (`[flac @ 0x7a66c39880] invalid sync code` becomes
+/// `[flac] invalid sync code`), so messages compare and read cleanly.
+fn strip_addresses(line: &str) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut rest = line;
+    while let Some(at) = rest.find(" @ 0x") {
+        out.push_str(&rest[..at]);
+        let tail = &rest[at + 5..];
+        let hex = tail.chars().take_while(char::is_ascii_hexdigit).count();
+        rest = &tail[hex..];
+    }
+    out.push_str(rest);
+    out
 }
 
 /// How a job ended.
@@ -184,6 +215,24 @@ mod tests {
         std::fs::write(&broken, bytes).expect("write");
         let report = ffmpeg.check_integrity(&broken).expect("check");
         assert!(!report.is_clean(), "{report:?}");
+    }
+
+    #[test]
+    fn ignores_artwork_and_repeat_lines() {
+        assert!(is_noise(
+            "[png @ 0x1] Invalid PNG signature 0xFFD8FFE000104A46."
+        ));
+        assert!(is_noise("Last message repeated 3 times"));
+        assert!(!is_noise("[mp3float @ 0x1] Header missing"));
+    }
+
+    #[test]
+    fn strips_log_addresses() {
+        assert_eq!(
+            strip_addresses("[aist#0:0/flac @ 0x7a6701] [dec:flac @ 0xabc] Decoding error"),
+            "[aist#0:0/flac] [dec:flac] Decoding error"
+        );
+        assert_eq!(strip_addresses("plain"), "plain");
     }
 
     #[test]

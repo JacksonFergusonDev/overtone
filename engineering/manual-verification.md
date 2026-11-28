@@ -39,6 +39,7 @@ Render a spectrogram for any track with `ot spectrogram <id or path> --out <file
 - [ ] Lossless files flagged Warning with a steep wall at about 20 to 20.8 kHz (a 320 kbps transcode looks the same as some genuine masters). For store-bought files, mark them Verified OK. Strongest cases: Danny Byrd "Red Mist VIP" and "Face to Face Again (Seba remix)". Others include Calibre "Even If", RUFUS "Innerbloom", Koven "The Outlines", Y U QT "Hyph Mngo Dub".
 - [ ] MP3 Warnings with a 15 to 18 kHz edge but some content above it (Eric Prydz "Generate", Boys Noize, Odd Mob, Oppidan "You & I", Adam F): check where they came from; they may be fine.
 - [ ] Spot-check a few Pass tracks' spectrograms against Spek or a similar tool so the rendering and dB scale look right.
+- [ ] Integrity check: run `ot audit --integrity`, then `ot ls --damaged`. On `local/` expect about 16 tracks. Listen to the 14 MP3s whose `ot show` lists `bits_left` errors and note whether any audibly glitch; if none do, those warnings should become edge-only or ignored. Listen to the one MP3 with corrupt frames and confirm the damage is audible.
 - [ ] Re-run `ot audit --all` after reviewing: your Verified OK and replace decisions are kept.
 
 ## Tag writing (Comment hashtags)

@@ -20,6 +20,9 @@ pub struct LsArgs {
     /// Only tracks flagged by quality analysis and not reviewed yet.
     #[arg(long)]
     needs_review: bool,
+    /// Only tracks whose integrity check (`audit --integrity`) found errors.
+    #[arg(long)]
+    damaged: bool,
 }
 
 #[derive(Debug, Args)]
@@ -35,12 +38,21 @@ pub fn ls(library: &Library, args: &LsArgs, out: &Output) -> Result<(), CoreErro
         .map(|name| find_vibe(library, &parse_vibe(name)?))
         .transpose()?;
 
+    let damaged: std::collections::HashSet<_> = if args.damaged {
+        library
+            .tracks_with_integrity_errors()?
+            .into_iter()
+            .collect()
+    } else {
+        std::collections::HashSet::new()
+    };
     let tracks: Vec<Track> = library
         .tracks()?
         .into_iter()
         .filter(|t| !args.missing || t.missing_since.is_some())
         .filter(|t| args.missing || t.missing_since.is_none())
         .filter(|t| !args.needs_review || needs_review(t))
+        .filter(|t| !args.damaged || damaged.contains(&t.id))
         .filter(|t| vibe_filter.as_ref().is_none_or(|v| t.vibes.contains(&v.id)))
         .collect();
 
@@ -76,6 +88,7 @@ struct ShowOutput<'a> {
     track: &'a Track,
     vibes: Vec<&'a Vibe>,
     duplicates: Vec<i64>,
+    integrity: Option<overtone_core::model::IntegrityCheck>,
 }
 
 pub fn show(library: &Library, args: &ShowArgs, out: &Output) -> Result<(), CoreError> {
@@ -94,6 +107,7 @@ pub fn show(library: &Library, args: &ShowArgs, out: &Output) -> Result<(), Core
         track: &track,
         vibes,
         duplicates,
+        integrity: library.integrity_check(track.id)?,
     };
     out.emit(&payload, || {
         let t = &track.tags;
@@ -129,6 +143,24 @@ pub fn show(library: &Library, args: &ShowArgs, out: &Output) -> Result<(), Core
         }
         if let Some(reason) = track.quality.as_ref().and_then(|q| q.reason.as_deref()) {
             println!("  {:<12} {reason}", "Why");
+        }
+        if let Some(check) = &payload.integrity {
+            if check.clean {
+                println!("  {:<12} no decode errors (ffmpeg {})", "Integrity", check.ffmpeg_version);
+            } else if check.edge_only {
+                println!(
+                    "  {:<12} {} error(s), all in junk at the very start or end; the music decodes cleanly",
+                    "Integrity", check.error_count
+                );
+            } else {
+                println!(
+                    "  {:<12} {} decode error(s) found by ffmpeg {}",
+                    "Integrity", check.error_count, check.ffmpeg_version
+                );
+                for error in &check.errors {
+                    println!("  {:<12} {error}", "");
+                }
+            }
         }
         if !payload.vibes.is_empty() {
             let names: Vec<String> = payload.vibes.iter().map(|v| v.path.to_string()).collect();

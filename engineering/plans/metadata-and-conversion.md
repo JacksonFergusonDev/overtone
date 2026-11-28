@@ -11,7 +11,7 @@ The order matters. Provenance comes before any lookup so fetched values never mi
 | 1 | Surgical ID3v2 COMM patcher | nothing | Done Nov 27: byte-level splicer for ID3v2 and FLAC, 1,067 of 1,082 files writable |
 | 2 | Per-field metadata provenance | nothing | Done Nov 27: schema 3, library API, `overtone-cli meta`; desktop UI and writing values to files come with step 5 |
 | 3 | ffmpeg foundation (decision, build, wrapper crate) | nothing | Done Nov 27: `overtone-ffmpeg` and [decision](../decisions/ffmpeg.md); building the bundled binary moves to release packaging |
-| 4 | ffmpeg fallback decoder and integrity check in the audit | 3 | Not started |
+| 4 | ffmpeg fallback decoder and integrity check in the audit | 3 | Done Nov 27: analyzer version 2, `audit --integrity`, `ls --damaged`; desktop UI pending |
 | 5 | Metadata lookup (MusicBrainz, Discogs, then AcoustID) | 2, and 4 for AcoustID | Not started |
 | 6 | Loudness, true peak, and leading-silence reports | 4 optional | Not started |
 | 7 | Export copies (downsampled and lossy) | 3 | Not started |
@@ -53,6 +53,8 @@ Decision so far: bundle ffmpeg, but use it only where Rust has no good answer.
 
 - When Symphonia can't decode a file, decode through ffmpeg and run the normal spectral analysis on the piped PCM. This replaces today's Unchecked result for HE-AAC and adds Opus, WMA, and damaged files.
 - Integrity check: a full ffmpeg decode with errors reported (`-v error -f null -`) as a second opinion on corrupt or truncated files, shown in the audit alongside the spectral verdict.
+
+As built: see [analyzer version 2](../decisions/audio-quality-analysis.md#analyzer-version-2-ffmpeg-fallback-and-integrity-checks). Building it turned up an existing bug: Symphonia silently decodes Apple-encoded HE-AAC as its half-rate core, which would have produced false Suspect verdicts; such files now go to ffmpeg.
 
 ## Step 5: metadata lookup
 
@@ -111,6 +113,10 @@ No open-source tool converts formats while keeping DJ data across Serato, Rekord
 - [triseratops](https://docs.rs/triseratops): a Rust Serato parser, stuck at 0.0.3 and licensed AGPL-3.0-or-later. Use for reference, not as a dependency.
 - [dj-data-converter](https://github.com/digital-dj-tools/dj-data-converter) and Lexicon (commercial): convert libraries between DJ apps, not file formats.
 - Forum threads ([NI community](https://community.native-instruments.com/discussion/comment/162726), [DJTechTools](https://forum.djtechtools.com/t/converting-audio-formats-and-keeping-cue-grid-in-traktor/13741)) ask for this and get no working answer.
+
+## Desktop surfaces for Phase 6
+
+Steps 2 and 4 shipped in the CLI first. The desktop app still needs: field sources and the suggestion review flow (with step 5), an integrity check action in Settings beside the audit, and integrity results in the inspector and a "Damaged" filter. Do these together with step 5's UI, before step 8a.
 
 ## Deferred
 

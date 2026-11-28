@@ -96,6 +96,10 @@ pub struct AuditReport {
     pub flagged: Vec<TrackId>,
     pub analyzer_version: u32,
     pub elapsed_ms: u64,
+    /// Tracks Symphonia couldn't decode that ffmpeg analyzed instead.
+    pub decoded_with_ffmpeg: u32,
+    /// Whether ffmpeg was available as a fallback decoder.
+    pub ffmpeg_available: bool,
 }
 
 /// Analyzes `ids` with the default thread count. See [`audit_tracks_with`].
@@ -145,14 +149,22 @@ pub fn audit_tracks_with(
         flagged: Vec::new(),
         analyzer_version: ANALYZER_VERSION,
         elapsed_ms: 0,
+        decoded_with_ffmpeg: 0,
+        ffmpeg_available: false,
     };
+    let analysis_options = AnalysisOptions {
+        fallback: overtone_ffmpeg::Ffmpeg::locate().ok(),
+        ..AnalysisOptions::default()
+    };
+    report.ffmpeg_available = analysis_options.fallback.is_some();
     let cancel = options.cancel;
     let is_cancelled = move || {
         cancel
             .as_ref()
             .is_some_and(|flag| flag.load(Ordering::Relaxed))
     };
-    let (sender, receiver) = mpsc::channel::<AnalysisRecord>();
+    let (sender, receiver) = mpsc::channel::<(AnalysisRecord, bool)>();
+    let analysis_options = &analysis_options;
     std::thread::scope(|scope| -> Result<(), CoreError> {
         scope.spawn(move || {
             pool.install(|| {
@@ -160,17 +172,23 @@ pub fn audit_tracks_with(
                     if is_cancelled() {
                         return;
                     }
-                    let record = match analyze(path, &AnalysisOptions::default()) {
-                        Ok(analysis) => AnalysisRecord {
-                            track: *id,
-                            report: analysis.report,
-                            waveform: Some(analysis.waveform.encode()),
-                        },
-                        Err(err) => AnalysisRecord {
-                            track: *id,
-                            report: unchecked_report(err.to_string()),
-                            waveform: None,
-                        },
+                    let record = match analyze(path, analysis_options) {
+                        Ok(analysis) => (
+                            AnalysisRecord {
+                                track: *id,
+                                report: analysis.report,
+                                waveform: Some(analysis.waveform.encode()),
+                            },
+                            analysis.decoded_by_ffmpeg,
+                        ),
+                        Err(err) => (
+                            AnalysisRecord {
+                                track: *id,
+                                report: unchecked_report(err.to_string()),
+                                waveform: None,
+                            },
+                            false,
+                        ),
                     };
                     // The receiver only hangs up after a save error.
                     let _ = sender.send(record);
@@ -179,7 +197,8 @@ pub fn audit_tracks_with(
         });
 
         let mut batch = Vec::with_capacity(SAVE_BATCH);
-        for record in receiver {
+        for (record, by_ffmpeg) in receiver {
+            report.decoded_with_ffmpeg += u32::from(by_ffmpeg);
             let verdict = record.report.verdict;
             report.analyzed += 1;
             report.verdicts.add(verdict);
@@ -217,7 +236,13 @@ pub fn analyze_one(
     spectrogram: Option<SpectrogramOptions>,
 ) -> Result<QualityReport, CoreError> {
     let track = library.track(id)?;
-    let analysis = analyze(Path::new(&track.path), &AnalysisOptions { spectrogram })?;
+    let analysis = analyze(
+        Path::new(&track.path),
+        &AnalysisOptions {
+            spectrogram,
+            fallback: overtone_ffmpeg::Ffmpeg::locate().ok(),
+        },
+    )?;
     library.save_analysis_batch(&[AnalysisRecord {
         track: id,
         report: analysis.report.clone(),

@@ -379,6 +379,7 @@ fn writes_spectrogram_png_with_requested_size() {
                 height: 256,
                 log_frequency,
             }),
+            ..AnalysisOptions::default()
         };
         analyze(&path, &options).expect("analyze");
         let decoder = png::Decoder::new(std::io::BufReader::new(
@@ -466,4 +467,79 @@ fn real_aac_decodes_and_its_flac_rewrap_is_flagged() {
         "{:?}",
         rewrapped.report
     );
+}
+
+/// An HE-AAC file made by Apple's encoder through ffmpeg, or `None` when
+/// ffmpeg (with AudioToolbox) isn't installed.
+fn he_aac(temp: &TempLibrary) -> Option<(overtone_ffmpeg::Ffmpeg, PathBuf)> {
+    let ffmpeg = overtone_ffmpeg::Ffmpeg::locate().ok()?;
+    if !ffmpeg.has_encoder("aac_at").ok()? {
+        return None;
+    }
+    let wav = temp.add_fixture(
+        "he-source",
+        &Signal::noise(16_000.0),
+        Fixture::Wav { bits: 16 },
+    );
+    let out = temp.dir.path().join("he.m4a");
+    let status = ffmpeg
+        .command()
+        .arg("-i")
+        .arg(&wav)
+        .args(["-c:a", "aac_at", "-profile:a", "4", "-b:a", "48k"])
+        .arg(&out)
+        .status()
+        .ok()?;
+    status.success().then_some((ffmpeg, out))
+}
+
+#[test]
+fn he_aac_falls_back_to_ffmpeg() {
+    let temp = TempLibrary::new();
+    let Some((ffmpeg, path)) = he_aac(&temp) else {
+        eprintln!("skipping: needs ffmpeg with aac_at");
+        return;
+    };
+    // Without a fallback this is the Unchecked case from PROGRESS.md.
+    assert!(analyze(&path, &AnalysisOptions::default()).is_err());
+
+    let analysis = analyze(
+        &path,
+        &AnalysisOptions {
+            fallback: Some(ffmpeg),
+            ..AnalysisOptions::default()
+        },
+    )
+    .expect("ffmpeg fallback");
+    assert!(analysis.decoded_by_ffmpeg);
+    assert_eq!(analysis.stream.format, AudioFormat::Aac);
+    assert_ne!(verdict(&analysis), QualityVerdict::Unchecked);
+    assert!(
+        analysis
+            .report
+            .reason
+            .as_deref()
+            .is_some_and(|r| r.contains("Decoded with ffmpeg")),
+        "{:?}",
+        analysis.report
+    );
+    assert!(analysis.duration_ms > 1_000);
+}
+
+#[test]
+fn files_symphonia_reads_never_use_the_fallback() {
+    let temp = TempLibrary::new();
+    let path = temp.add_fixture("plain", &Signal::cd(16_000.0), Fixture::Flac { bits: 16 });
+    let Ok(ffmpeg) = overtone_ffmpeg::Ffmpeg::locate() else {
+        return;
+    };
+    let analysis = analyze(
+        &path,
+        &AnalysisOptions {
+            fallback: Some(ffmpeg),
+            ..AnalysisOptions::default()
+        },
+    )
+    .expect("analyze");
+    assert!(!analysis.decoded_by_ffmpeg);
 }

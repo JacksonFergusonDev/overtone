@@ -23,9 +23,17 @@ pub struct AuditArgs {
     /// Tracks to analyze at once. More is faster but heats a fanless Mac.
     #[arg(long, default_value_t = DEFAULT_AUDIT_THREADS)]
     threads: usize,
+    /// Instead of the quality analysis, decode each file in full with
+    /// ffmpeg and record any errors (corrupt frames, truncation). Without
+    /// tracks, checks files not checked yet or changed since.
+    #[arg(long)]
+    integrity: bool,
 }
 
 pub fn audit(library: &mut Library, args: &AuditArgs, out: &Output) -> Result<(), CoreError> {
+    if args.integrity {
+        return integrity(library, args, out);
+    }
     let ids: Vec<TrackId> = if args.all {
         library
             .tracks()?
@@ -78,6 +86,17 @@ pub fn audit(library: &mut Library, args: &AuditArgs, out: &Output) -> Result<()
             v.inconclusive,
             v.unchecked
         );
+        if report.decoded_with_ffmpeg > 0 {
+            println!(
+                "{} track(s) were decoded with ffmpeg because Overtone's own decoder couldn't read them",
+                report.decoded_with_ffmpeg
+            );
+        }
+        if !report.ffmpeg_available && v.unchecked > 0 {
+            println!(
+                "Install ffmpeg (`brew install ffmpeg`) to analyze files Overtone's own decoder can't read"
+            );
+        }
         if !report.flagged.is_empty() {
             println!(
                 "{} flagged for review. Nothing was deleted or moved; listen and look with \
@@ -153,6 +172,7 @@ pub fn spectrogram(
         std::path::Path::new(&track.path),
         &AnalysisOptions {
             spectrogram: Some(options),
+            fallback: overtone_core::ffmpeg::Ffmpeg::locate().ok(),
         },
     )?;
     let payload = serde_json::json!({
@@ -164,6 +184,60 @@ pub fn spectrogram(
         println!("Wrote {}", png.display());
         if let Some(reason) = &analysis.report.reason {
             println!("{}: {reason}", analysis.report.verdict.as_str());
+        }
+    });
+    Ok(())
+}
+
+fn integrity(library: &mut Library, args: &AuditArgs, out: &Output) -> Result<(), CoreError> {
+    let ids: Vec<TrackId> = if args.all {
+        library
+            .tracks()?
+            .into_iter()
+            .filter(|t| t.missing_since.is_none())
+            .map(|t| t.id)
+            .collect()
+    } else if args.tracks.is_empty() {
+        library.tracks_needing_integrity_check()?
+    } else {
+        args.tracks
+            .iter()
+            .map(|s| resolve_track(library, s).map(|t| t.id))
+            .collect::<Result<_, _>>()?
+    };
+    let bar = if out.is_json() {
+        ProgressBar::hidden()
+    } else {
+        ProgressBar::with_draw_target(Some(ids.len() as u64), ProgressDrawTarget::stderr())
+    };
+    bar.set_style(
+        ProgressStyle::with_template("Checking {wide_bar} {pos}/{len} {eta}")
+            .expect("valid template"),
+    );
+    let bar = Mutex::new(bar);
+    let options = overtone_core::integrity::IntegrityOptions {
+        threads: args.threads.max(1),
+        ..Default::default()
+    };
+    let report = overtone_core::integrity::check_tracks(library, &ids, &options, &|p| {
+        if let Ok(bar) = bar.lock() {
+            bar.set_position(u64::from(p.done));
+        }
+    })?;
+    if let Ok(bar) = bar.lock() {
+        bar.finish_and_clear();
+    }
+    out.emit(&report, || {
+        println!(
+            "Checked {} track(s) in {:.1} s with ffmpeg {}: {} with decode errors in the music, {} with harmless junk at the start or end",
+            report.checked,
+            report.elapsed_ms as f64 / 1000.0,
+            report.ffmpeg_version,
+            report.damaged.len(),
+            report.edge_only
+        );
+        if !report.damaged.is_empty() {
+            println!("List them with `overtone-cli ls --damaged`; `show <track>` has the details.");
         }
     });
     Ok(())

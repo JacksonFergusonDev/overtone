@@ -5,11 +5,13 @@
 //! the desktop app and CLI serialize them. Keep this crate free of heavy
 //! dependencies so every other crate can depend on it.
 
+mod integrity;
 mod metadata;
 mod quality;
 mod track;
 mod vibe;
 
+pub use integrity::IntegrityCheck;
 pub use metadata::{
     FieldSource, FieldValue, MetadataField, MetadataSuggestion, NewSuggestion, SuggestionId,
     SuggestionStatus,

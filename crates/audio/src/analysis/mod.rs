@@ -13,6 +13,7 @@
 //! Nothing here deletes, moves, or rewrites audio.
 
 pub mod decode;
+mod source;
 mod spectrogram;
 mod spectrum;
 pub mod verdict;
@@ -22,7 +23,10 @@ mod window;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::Path;
 
+use overtone_ffmpeg::Ffmpeg;
 use overtone_model::{QualityReport, QualityVerdict, ReviewStatus, UnixMillis};
+
+use source::Source;
 
 pub use decode::{Decoder, StreamInfo};
 pub use spectrogram::{SPECTROGRAM_BOTTOM_DB, SPECTROGRAM_TOP_DB, SpectrogramOptions};
@@ -33,7 +37,7 @@ use crate::AudioError;
 
 /// Version of the analyzer's heuristics. Bump it whenever thresholds or
 /// measurements change, so stored reports from older versions are re-run.
-pub const ANALYZER_VERSION: u32 = 1;
+pub const ANALYZER_VERSION: u32 = 2;
 
 /// Points in [`Analysis::spectrum_summary`].
 pub const SPECTRUM_SUMMARY_POINTS: usize = 512;
@@ -49,6 +53,9 @@ const CLIP_RUN: u32 = 3;
 pub struct AnalysisOptions {
     /// Also render a spectrogram PNG from the same pass.
     pub spectrogram: Option<SpectrogramOptions>,
+    /// ffmpeg to decode with when Symphonia can't (HE-AAC, Opus, WMA,
+    /// damaged files). `None` records such files as Unchecked.
+    pub fallback: Option<Ffmpeg>,
 }
 
 /// Everything one analysis pass produces.
@@ -71,6 +78,8 @@ pub struct Analysis {
     pub clipped_runs: u64,
     /// Damaged packets the decoder skipped.
     pub skipped_packets: u64,
+    /// Whether the audio was decoded by ffmpeg because Symphonia couldn't.
+    pub decoded_by_ffmpeg: bool,
 }
 
 /// Decodes `path` read-only and analyzes it in one pass.
@@ -79,7 +88,29 @@ pub struct Analysis {
 /// [`AudioError::Panicked`], so one hostile file can't take down a batch.
 /// (This relies on unwinding; a `panic = "abort"` profile defeats it.)
 pub fn analyze(path: &Path, options: &AnalysisOptions) -> Result<Analysis, AudioError> {
-    catch_unwind(AssertUnwindSafe(|| analyze_inner(path, options))).unwrap_or_else(|payload| {
+    let first = guarded(path, || {
+        analyze_source(path, options, Source::Symphonia(Decoder::open(path)?))
+    });
+    let (Err(symphonia_error), Some(ffmpeg)) = (&first, &options.fallback) else {
+        return first;
+    };
+    guarded(path, || {
+        let mut analysis = analyze_source(path, options, Source::ffmpeg(ffmpeg, path)?)?;
+        if let Some(reason) = analysis.report.reason.as_mut() {
+            reason.push_str(&format!(
+                " Decoded with ffmpeg because Symphonia couldn't: {symphonia_error}."
+            ));
+        }
+        Ok(analysis)
+    })
+    .map_err(|_| first.expect_err("checked above"))
+}
+
+fn guarded(
+    path: &Path,
+    work: impl FnOnce() -> Result<Analysis, AudioError>,
+) -> Result<Analysis, AudioError> {
+    catch_unwind(AssertUnwindSafe(work)).unwrap_or_else(|payload| {
         let message = payload
             .downcast_ref::<&str>()
             .map(|s| (*s).to_string())
@@ -107,8 +138,11 @@ pub fn unchecked_report(reason: impl Into<String>) -> QualityReport {
     }
 }
 
-fn analyze_inner(path: &Path, options: &AnalysisOptions) -> Result<Analysis, AudioError> {
-    let mut decoder = Decoder::open(path)?;
+fn analyze_source(
+    path: &Path,
+    options: &AnalysisOptions,
+    mut decoder: Source,
+) -> Result<Analysis, AudioError> {
     let mut sample_rate = decoder.info().sample_rate_hz;
 
     let mut welch = None;
@@ -179,6 +213,9 @@ fn analyze_inner(path: &Path, options: &AnalysisOptions) -> Result<Analysis, Aud
     }
 
     let frames = decoder.decoded_frames();
+    if !decoder.decoded_by_ffmpeg() {
+        check_full_length(path, decoder.info(), frames)?;
+    }
     if frames == 0 {
         return Err(AudioError::Decode {
             path: path.to_path_buf(),
@@ -195,11 +232,10 @@ fn analyze_inner(path: &Path, options: &AnalysisOptions) -> Result<Analysis, Aud
     #[allow(
         clippy::cast_possible_truncation,
         clippy::cast_sign_loss,
-        reason = "bitrate and duration are small positive values"
+        reason = "duration is a small positive value"
     )]
     let (bitrate_kbps, duration_ms) = (
-        (duration_secs > 0.0)
-            .then(|| (decoder.packet_bytes() as f64 * 8.0 / duration_secs / 1000.0).round() as u32),
+        decoder.bitrate_kbps(duration_secs),
         (duration_secs * 1000.0).round() as u64,
     );
     let info = decoder.info().clone();
@@ -232,7 +268,29 @@ fn analyze_inner(path: &Path, options: &AnalysisOptions) -> Result<Analysis, Aud
         channel_peaks: peaks,
         clipped_runs,
         skipped_packets: decoder.skipped_packets(),
+        decoded_by_ffmpeg: decoder.decoded_by_ffmpeg(),
     })
+}
+
+/// HE-AAC with backward-compatible signalling (Apple's encoder writes it)
+/// declares the full rate, so Symphonia decodes only the half-rate core:
+/// half the frames, and a spectrum that stops near a quarter of the sample
+/// rate. Catch it from the frame count so it falls back to ffmpeg instead
+/// of producing a false verdict.
+fn check_full_length(path: &Path, info: &StreamInfo, frames: u64) -> Result<(), AudioError> {
+    let Some(hint) = info.frames_hint.filter(|h| *h > 0) else {
+        return Ok(());
+    };
+    let ratio = frames as f64 / hint as f64;
+    if info.format == overtone_model::AudioFormat::Aac && (0.4..0.6).contains(&ratio) {
+        return Err(AudioError::UnsupportedCodec {
+            path: path.to_path_buf(),
+            reason: "the AAC stream decoded to half its declared length, so it is HE-AAC, \
+                     which the decoder can't reproduce yet"
+                .into(),
+        });
+    }
+    Ok(())
 }
 
 fn now_millis() -> UnixMillis {

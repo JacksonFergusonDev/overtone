@@ -13,12 +13,14 @@ use thiserror::Error;
 use ts_rs::TS;
 
 pub mod audit;
+pub mod integrity;
 pub mod rekordbox_db;
 pub mod scan;
 pub mod sync;
 pub mod tags;
 pub mod traktor;
 
+pub use overtone_ffmpeg as ffmpeg;
 pub use overtone_fs as fs;
 pub use overtone_library as library;
 pub use overtone_model as model;
@@ -38,6 +40,8 @@ pub enum CoreError {
     Rekordbox(#[from] RekordboxError),
     #[error(transparent)]
     Traktor(#[from] TraktorError),
+    #[error(transparent)]
+    Ffmpeg(#[from] overtone_ffmpeg::FfmpegError),
     #[error("couldn't find a folder for Overtone's data; set OVERTONE_DATA_DIR")]
     NoDataDir,
     #[error("can't add {path} as a library folder: {reason}")]
@@ -83,6 +87,8 @@ impl CoreError {
             Self::Serato(_) => "serato",
             Self::Rekordbox(_) => "rekordbox",
             Self::Traktor(_) => "traktor",
+            Self::Ffmpeg(overtone_ffmpeg::FfmpegError::NotFound) => "ffmpeg_missing",
+            Self::Ffmpeg(_) => "ffmpeg",
             Self::NoDataDir => "no_data_dir",
             Self::InvalidRoot { .. } => "invalid_root",
             Self::Worker(_) => "worker",

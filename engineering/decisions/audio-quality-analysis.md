@@ -50,7 +50,7 @@ Because `overtone-audio` already decodes every track during ingest and quality s
 - **Sporadic content.** If the peak-hold rises 12 dB over the floor somewhere more than 1.5 kHz above a wall, some passages carry treble a lower-bitrate source could not have kept. In a lossy file this is usually an encoder dropping its top band in busy passages, so the verdict is at most Warning. In a lossless file a hard wall at 15-17.2 kHz stays Suspect with lower confidence, because decoding a loud MP3 to 16-bit clips and splatters into the empty band.
 - **Waveform encoding.** The library stores waveform peaks as an opaque blob from `Waveform::encode`: one version byte (1), then a signed 8-bit min and max per bucket (`round(x * 127)`), about 2.4 KB per track.
 - **Spectrogram.** 8-bit indexed PNG, magma palette, 0 to -120 dBFS, linear or log frequency, rendered from the same FFT frames (no second decode), written atomically through `overtone-fs`.
-- **Failures.** HE-AAC (declared, or implied by an AAC stream at 24 kHz or less) and 32-bit FLAC are refused before decoding. Damaged packets are skipped. A truncated file is analyzed on what it holds. Panics are caught per track with `catch_unwind`, which needs unwinding: the workspace release profile currently sets `panic = "abort"`, which defeats it.
+- **Failures.** HE-AAC (declared, or implied by an AAC stream at 24 kHz or less) and 32-bit FLAC are refused before decoding. Since analyzer version 2, HE-AAC is also caught after decoding when an AAC stream yields about half its declared frames (Apple's encoder signals SBR in a way Symphonia misses, so it silently decodes only the half-rate core), and every file Symphonia refuses or fails on is decoded through ffmpeg instead when ffmpeg is installed ([ffmpeg](ffmpeg.md)); its report says so. Damaged packets are skipped. A truncated file is analyzed on what it holds. Panics are caught per track with `catch_unwind`, which needs unwinding: the workspace release profile currently sets `panic = "abort"`, which defeats it.
 
 ### Thresholds
 
@@ -67,6 +67,17 @@ Because `overtone-audio` already decodes every track during ingest and quality s
 | Under 2 s of audible audio | Inconclusive | Inconclusive | Inconclusive |
 
 Expected lossy cutoffs come from LAME 3.100's lowpass table less tolerance for other encoders: 112-143 kbps 15.5 kHz, 144-175 kbps 16.8 kHz, 176-223 kbps 17.8 kHz, 224-287 kbps 18.8 kHz, 288 kbps and up 19.5 kHz; AAC 0.5 kHz lower. The bitrate is measured from compressed packet sizes, not read from tags, so embedded artwork doesn't inflate it.
+
+## Analyzer version 2: ffmpeg fallback and integrity checks
+
+Decided November 27, 2026 (Phase 6 step 4). The spectral heuristics are unchanged; version 2 only means more files can be analyzed, so an audit after upgrading reanalyzes everything once. On `local/` the verdicts are identical to version 1 (1,092 pass, 39 warning, 15 suspect, 5 inconclusive, in 105 s on 4 threads). None of the 69 M4A files there are HE-AAC: all decode within 0.06% of ffmpeg's length.
+
+`overtone-cli audit --integrity` decodes each file in full with ffmpeg (`-err_detect crccheck+bitstream+buffer`) and stores every error line beside the verdict. It is a separate, opt-in pass because it costs as much as the audit. Two refinements came from running it on `local/` (1,151 files, 106 s):
+
+- **Artwork noise.** ffmpeg probes embedded artwork even when only audio is mapped, so a mislabelled cover ("Invalid PNG signature" on a JPEG) looked like damage. Lines from image decoders and "Last message repeated" are dropped.
+- **Junk at the edges.** 36 files, mostly MP3s, report "Header missing" only in their last seconds, where zero padding or leftover bytes sit before an ID3v1 tag. A file with errors is checked again without its first 0.5 s and last 2.5 s; if that decodes cleanly it is recorded as edge-only, which `ls --damaged` leaves out and `show` explains.
+
+That leaves 16 files with errors inside the music: 14 MP3s on which ffmpeg reports `bits_left` warnings in most frames (from 2 to 47,011 lines), one MP3 with corrupt frames, and one WAV ffmpeg can't open at all (lofty can't read its chunk sizes either). Whether the `bits_left` files sound damaged is a listening check in the [manual verification checklist](../manual-verification.md).
 
 ## Measurements
 
