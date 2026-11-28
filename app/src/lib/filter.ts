@@ -13,6 +13,8 @@ export interface TrackFilter {
   vibeIds: ReadonlySet<VibeId> | null;
   /** Only Warning or Suspect tracks nobody has reviewed yet. */
   needsReview: boolean;
+  /** Only these tracks (with decode errors in the music); null shows all. */
+  damagedIds: ReadonlySet<TrackId> | null;
 }
 
 export const EMPTY_FILTER: TrackFilter = {
@@ -21,6 +23,7 @@ export const EMPTY_FILTER: TrackFilter = {
   missing: "any",
   vibeIds: null,
   needsReview: false,
+  damagedIds: null,
 };
 
 export function verdictOf(track: Track): QualityVerdict {
@@ -62,6 +65,7 @@ export function matchesTrack(
   terms: readonly string[] = queryTerms(filter.query),
 ): boolean {
   if (filter.needsReview && !needsReview(track)) return false;
+  if (filter.damagedIds && !filter.damagedIds.has(track.id)) return false;
   if (filter.missing === "missing" && track.missing_since === null)
     return false;
   if (filter.missing === "present" && track.missing_since !== null)

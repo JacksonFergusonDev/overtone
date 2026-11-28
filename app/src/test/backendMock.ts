@@ -14,6 +14,7 @@ function createBackend(): Mocked<Backend> {
     appStatus: vi.fn(async () => STATUS),
     listTracks: vi.fn(async () => TRACKS),
     listVibes: vi.fn(async () => VIBES),
+    damagedTracks: vi.fn(async () => []),
     listRoots: vi.fn(async () => []),
     addRoot: vi.fn(),
     removeRoot: vi.fn(async () => null),

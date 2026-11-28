@@ -13,7 +13,7 @@ Scans and audits run in the background. Their progress shows in the status bar a
 
 ## Browse and play
 
-The **Library** view lists every track. Click a column header to sort by it, and click it again to reverse the order. Use the search field (`/` or `⌘ F`) to find tracks by title, artist, album, or comment, and the chips next to it to show only certain verdicts or missing files.
+The **Library** view lists every track. Click a column header to sort by it, and click it again to reverse the order. Use the search field (`/` or `⌘ F`) to find tracks by title, artist, album, or comment, and the chips next to it to show only certain verdicts or missing files. Once **Check files** finds decode errors inside the music of any track, a **Damaged** chip appears with their count; choose it to list only those tracks.
 
 Click a vibe in the sidebar to show only its tracks, including tracks in vibes nested below it. Choose **Library** to show everything again.
 

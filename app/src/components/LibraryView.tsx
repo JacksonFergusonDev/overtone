@@ -19,6 +19,7 @@ const VERDICTS: QualityVerdict[] = [
 
 function FilterBar({ tableKey }: { tableKey: TableKey }) {
   const table = useUi((s) => s.tables[tableKey]);
+  const damagedCount = useLibrary((s) => s.damaged.size);
   const view = useUi((s) => s.view);
   const vibeFilter = useUi((s) => s.vibeFilter);
   const vibes = useVibeMap();
@@ -102,6 +103,17 @@ function FilterBar({ tableKey }: { tableKey: TableKey }) {
       >
         Missing
       </button>
+      {(damagedCount > 0 || table.damaged) && (
+        <button
+          type="button"
+          className="chip"
+          aria-pressed={table.damaged}
+          title="Tracks whose integrity check found decode errors in the music"
+          onClick={() => updateTable(tableKey, { damaged: !table.damaged })}
+        >
+          Damaged <span className="chip-count">{damagedCount}</span>
+        </button>
+      )}
       {vibe && (
         <span className="chip chip-vibe">
           <span className="truncate" title={vibe.path}>

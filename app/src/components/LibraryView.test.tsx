@@ -112,4 +112,23 @@ describe("Library view", () => {
     ).toEqual(["Bravo", "Alpha"]);
     expect(backend.listTracks).toHaveBeenCalledTimes(1);
   });
+
+  it("shows only damaged tracks with the Damaged chip", async () => {
+    backend.damagedTracks.mockResolvedValue([3]);
+    const { user } = await renderApp();
+    const chip = screen.getByRole("button", { name: /^Damaged/ });
+    expect(chip).toHaveTextContent("1");
+    await user.click(chip);
+    expect(chip).toHaveAttribute("aria-pressed", "true");
+    expect(titles()).toEqual(["Charlie"]);
+    await user.click(chip);
+    expect(titles()).toHaveLength(5);
+  });
+
+  it("hides the Damaged chip when no check found errors", async () => {
+    await renderApp();
+    expect(
+      screen.queryByRole("button", { name: /^Damaged/ }),
+    ).not.toBeInTheDocument();
+  });
 });

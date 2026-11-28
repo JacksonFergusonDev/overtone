@@ -362,6 +362,8 @@ export const commands = {
       settings,
       onProgress: channel(onProgress),
     }),
+  /** Tracks whose latest integrity check found errors in the music. */
+  damagedTracks: () => invoke<TrackId[]>("damaged_tracks"),
   /** Previews converting the given tracks, or every WAV and AIFF for null. */
   planConversion: (trackIds: TrackId[] | null) =>
     invoke<ConvertReport>("plan_conversion", { trackIds }),

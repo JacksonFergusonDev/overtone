@@ -132,6 +132,16 @@ pub async fn export_tracks(
     .map_err(|err| join_error(&err))?
 }
 
+/// Tracks whose latest integrity check found errors inside the music.
+#[tauri::command(async)]
+pub fn damaged_tracks(state: State<'_, AppState>) -> Result<Vec<TrackId>, CommandError> {
+    state.with_library(|library| {
+        library
+            .tracks_with_integrity_errors()
+            .map_err(CoreError::from)
+    })
+}
+
 /// Previews converting the given tracks (or every WAV and AIFF track).
 #[tauri::command]
 pub async fn plan_conversion(

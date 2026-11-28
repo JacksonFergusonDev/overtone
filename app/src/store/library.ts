@@ -29,6 +29,8 @@ export interface LibraryState {
   waveforms: ReadonlyMap<TrackId, WaveformPeaks | null>;
   /** Rendered spectrograms keyed by `${trackId}:${log}`. */
   spectrograms: ReadonlyMap<string, SpectrogramImage>;
+  /** Tracks whose latest integrity check found errors in the music. */
+  damaged: ReadonlySet<TrackId>;
 }
 
 const initialState: LibraryState = {
@@ -40,6 +42,7 @@ const initialState: LibraryState = {
   vibes: [],
   waveforms: new Map(),
   spectrograms: new Map(),
+  damaged: new Set(),
 };
 
 export const useLibrary = create<LibraryState>(() => initialState);
@@ -66,16 +69,18 @@ export async function loadLibrary(): Promise<void> {
   if (useLibrary.getState().load !== "idle") return;
   useLibrary.setState({ load: "loading" });
   try {
-    const [status, tracks, vibes] = await Promise.all([
+    const [status, tracks, vibes, damaged] = await Promise.all([
       backend.appStatus(),
       backend.listTracks(),
       backend.listVibes(),
+      backend.damagedTracks(),
     ]);
     useLibrary.setState({
       load: "ready",
       status,
       vibes,
       ...indexTracks(tracks),
+      damaged: new Set(damaged),
       error: null,
     });
   } catch (error) {
@@ -86,16 +91,18 @@ export async function loadLibrary(): Promise<void> {
 /** Re-reads every track and the status, for example after a scan or audit. */
 export async function reloadTracks(): Promise<void> {
   try {
-    const [status, tracks, vibes] = await Promise.all([
+    const [status, tracks, vibes, damaged] = await Promise.all([
       backend.appStatus(),
       backend.listTracks(),
       backend.listVibes(),
+      backend.damagedTracks(),
     ]);
     // An audit may have produced new reports, so drop cached spectrograms.
     useLibrary.setState({
       status,
       vibes,
       ...indexTracks(tracks),
+      damaged: new Set(damaged),
       spectrograms: new Map(),
     });
   } catch (error) {

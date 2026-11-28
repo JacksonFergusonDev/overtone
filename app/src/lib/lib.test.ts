@@ -128,6 +128,7 @@ describe("filterTracks", () => {
     expect(run({ verdicts: ["unchecked"] })).toEqual([1, 2, 3, 4]);
     expect(run({ missing: "missing" })).toEqual([4]);
     expect(run({ needsReview: true })).toEqual([5]);
+    expect(run({ damagedIds: new Set([2, 6]) })).toEqual([2, 6]);
     expect(needsReview(tracks[5])).toBe(false);
   });
 });

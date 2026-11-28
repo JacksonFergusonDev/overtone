@@ -148,6 +148,7 @@ Check at the default window size (1280x860) and the minimum (840x560). See [Usin
 - [ ] **Look this track up** in a real window with a real network fills Suggestions, and Accept or Replace changes the field's source pill.
 - [ ] **Export a copy…** opens the folder picker and the copy plays in Finder's Quick Look. **Convert to FLAC…** on a `local/` clone shows the confirm dialog, then the inspector shows the FLAC, and **Discard the FLAC** removes it.
 - [ ] **Check files** and batch **Convert to FLAC…** in Settings show progress, Cancel stops them, and an audit can't start while they run.
+- [ ] After **Check files** on `local/music`, the Library shows a **Damaged** chip with the count `ot ls --damaged` reports, and choosing it lists the same tracks.
 
 ## Traktor collection sync
 

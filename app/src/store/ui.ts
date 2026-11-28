@@ -18,6 +18,8 @@ export interface TableState {
   query: string;
   verdicts: readonly QualityVerdict[];
   missing: MissingFilter;
+  /** Only tracks whose integrity check found errors in the music. */
+  damaged: boolean;
   selection: SelectionState;
 }
 
@@ -39,6 +41,7 @@ const table = (sort: SortSpec): TableState => ({
   query: "",
   verdicts: [],
   missing: "any",
+  damaged: false,
   selection: EMPTY_SELECTION,
 });
 

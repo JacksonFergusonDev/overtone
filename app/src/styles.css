@@ -1718,3 +1718,9 @@ details summary {
 .settings-form .btn {
   justify-self: start;
 }
+
+.chip-count {
+  margin-left: 4px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}

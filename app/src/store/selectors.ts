@@ -18,6 +18,7 @@ interface FilterCache {
   tracks: ReadonlyMap<TrackId, Track>;
   vibes: readonly Vibe[];
   vibeFilter: VibeId | null;
+  damaged: ReadonlySet<TrackId>;
   table: UiState["tables"][TableKey];
   result: TrackId[];
 }
@@ -59,6 +60,7 @@ export interface VisibleInputs {
   vibes: readonly Vibe[];
   table: UiState["tables"][TableKey];
   vibeFilter: VibeId | null;
+  damaged: ReadonlySet<TrackId>;
 }
 
 function sortedIds(
@@ -93,6 +95,7 @@ export function tableFilter(
   table: UiState["tables"][TableKey],
   vibes: readonly Vibe[],
   vibeFilter: VibeId | null,
+  damaged: ReadonlySet<TrackId> = new Set(),
 ): TrackFilter {
   return {
     query: table.query,
@@ -103,6 +106,7 @@ export function tableFilter(
         ? vibeWithDescendants(vibes, vibeFilter)
         : null,
     needsReview: key === "review",
+    damagedIds: table.damaged ? damaged : null,
   };
 }
 
@@ -124,20 +128,23 @@ export function visibleIds(key: TableKey, input: VisibleInputs): TrackId[] {
     cached.vibeFilter === ui.vibeFilter &&
     cached.table.query === table.query &&
     cached.table.verdicts === table.verdicts &&
-    cached.table.missing === table.missing
+    cached.table.missing === table.missing &&
+    cached.table.damaged === table.damaged &&
+    cached.damaged === library.damaged
   ) {
     return cached.result;
   }
   const result = filterTracks(
     sorted,
     library.tracks,
-    tableFilter(key, table, library.vibes, ui.vibeFilter),
+    tableFilter(key, table, library.vibes, ui.vibeFilter, library.damaged),
   );
   filterCaches.set(key, {
     sorted,
     tracks: library.tracks,
     vibes: library.vibes,
     vibeFilter: ui.vibeFilter,
+    damaged: library.damaged,
     table,
     result,
   });
@@ -155,6 +162,7 @@ function inputsFrom(
     vibes: library.vibes,
     table: ui.tables[key],
     vibeFilter: ui.vibeFilter,
+    damaged: library.damaged,
   };
 }
 
@@ -172,9 +180,10 @@ export function useVisibleIds(key: TableKey): TrackId[] {
   const vibes = useLibrary((s) => s.vibes);
   const table = useUi((s) => s.tables[key]);
   const vibeFilter = useUi((s) => s.vibeFilter);
+  const damaged = useLibrary((s) => s.damaged);
   return useMemo(
-    () => visibleIds(key, { tracks, order, vibes, table, vibeFilter }),
-    [key, tracks, order, vibes, table, vibeFilter],
+    () => visibleIds(key, { tracks, order, vibes, table, vibeFilter, damaged }),
+    [key, tracks, order, vibes, table, vibeFilter, damaged],
   );
 }
 

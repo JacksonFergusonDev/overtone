@@ -347,6 +347,10 @@ export function createMetadataMock(ctx: MockContext) {
         restorable: originals.has(track.id),
       };
     },
+    damaged_tracks: () =>
+      [...integrity.values()]
+        .filter((check) => !check.clean && !check.edge_only)
+        .map((check) => check.track_id),
     plan_tag_writes: (args) =>
       tagPlans((args.trackIds as TrackId[] | null) ?? null),
     set_track_field: (args) => {

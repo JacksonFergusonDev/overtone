@@ -50,6 +50,7 @@ const COMMANDS: &[&str] = &[
     "plan_tag_writes",
     "write_tags",
     "restore_original_tags",
+    "damaged_tracks",
 ];
 
 fn main() {
