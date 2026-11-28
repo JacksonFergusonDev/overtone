@@ -79,3 +79,26 @@ describe("Settings view", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("Metadata lookup settings", () => {
+  it("saves credentials without showing them back", async () => {
+    backend.setLookupSettings.mockResolvedValue({
+      acoustid_key_set: true,
+      discogs_token_set: false,
+      contact: null,
+      providers: ["acoustid", "musicbrainz"],
+    });
+    const { user } = await renderApp();
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    const card = screen.getByRole("region", { name: "Metadata lookup" });
+    await user.type(within(card).getByLabelText(/AcoustID key/), "secret");
+    await user.click(within(card).getByRole("button", { name: "Save" }));
+    expect(backend.setLookupSettings).toHaveBeenCalledWith("secret", null, "");
+    await waitFor(() =>
+      expect(
+        within(card).getByText("Using: acoustid, musicbrainz"),
+      ).toBeInTheDocument(),
+    );
+    expect(within(card).getByLabelText(/AcoustID key/)).toHaveValue("");
+  });
+});

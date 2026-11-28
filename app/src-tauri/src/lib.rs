@@ -13,7 +13,7 @@ mod state;
 
 use tauri::Manager;
 
-use commands::{library, quality, sync, tags, vibes};
+use commands::{files, library, metadata, quality, sync, tags, vibes};
 pub use error::CommandError;
 pub use state::AppState;
 
@@ -51,6 +51,20 @@ fn builder<R: tauri::Runtime>() -> tauri::Builder<R> {
         tags::plan_tag_mirror,
         tags::apply_tag_mirror,
         tags::restore_comments,
+        metadata::track_details,
+        metadata::set_track_field,
+        metadata::reset_track_field,
+        metadata::list_suggestions,
+        metadata::accept_suggestion,
+        metadata::reject_suggestion,
+        metadata::lookup_settings,
+        metadata::set_lookup_settings,
+        metadata::lookup_tracks,
+        files::check_integrity,
+        files::export_tracks,
+        files::plan_conversion,
+        files::convert_tracks,
+        files::discard_conversion,
     ])
 }
 
@@ -133,6 +147,9 @@ mod tests {
             ("create_vibe", serde_json::json!({ "path": "Dubs/Deep" })),
             ("sync_history", serde_json::json!({ "limit": 5 })),
             ("dj_apps_running", serde_json::json!({})),
+            ("lookup_settings", serde_json::json!({})),
+            ("list_suggestions", serde_json::json!({})),
+            ("plan_conversion", serde_json::json!({ "trackIds": [] })),
         ] {
             let response = get_ipc_response(&window, request(&key, cmd, body));
             assert!(response.is_ok(), "{cmd} failed: {:?}", response.err());

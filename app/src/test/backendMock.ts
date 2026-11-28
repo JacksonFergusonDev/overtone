@@ -45,6 +45,32 @@ function createBackend(): Mocked<Backend> {
     applyTagMirror: vi.fn(),
     restoreComments: vi.fn(),
     syncHistory: vi.fn(async () => []),
+    trackDetails: vi.fn(async (trackId: number) => ({
+      track_id: trackId,
+      fields: [],
+      suggestions: [],
+      loudness: null,
+      integrity: null,
+      conversion: null,
+    })),
+    setTrackField: vi.fn(),
+    resetTrackField: vi.fn(),
+    listSuggestions: vi.fn(async () => []),
+    acceptSuggestion: vi.fn(),
+    rejectSuggestion: vi.fn(async () => null),
+    lookupSettings: vi.fn(async () => ({
+      acoustid_key_set: false,
+      discogs_token_set: false,
+      contact: null,
+      providers: ["musicbrainz"],
+    })),
+    setLookupSettings: vi.fn(),
+    lookupTracks: vi.fn(),
+    checkIntegrity: vi.fn(),
+    exportTracks: vi.fn(),
+    planConversion: vi.fn(),
+    convertTracks: vi.fn(),
+    discardConversion: vi.fn(async () => true),
   } as unknown as Mocked<Backend>;
 }
 

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-lookup-settings"
+description = "Enables the set_lookup_settings command without any pre-configured scope."
+commands.allow = ["set_lookup_settings"]
+
+[[permission]]
+identifier = "deny-set-lookup-settings"
+description = "Denies the set_lookup_settings command without any pre-configured scope."
+commands.deny = ["set_lookup_settings"]

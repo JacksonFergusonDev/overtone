@@ -22,6 +22,7 @@ import {
   type TableKey,
 } from "../store/ui";
 import { VerdictBadge } from "./Badges";
+import { TrackDetailsPanel } from "./TrackDetailsPanel";
 
 function FrequencyAxis({
   sampleRate,
@@ -140,9 +141,9 @@ export function Inspector() {
   useHotkeys("l", () => setLog((value) => !value), { scopes: "inspector" });
 
   return (
-    <aside className="inspector" aria-label="Quality inspector">
+    <aside className="inspector" aria-label="Inspector">
       <header className="inspector-header">
-        <h2>Quality</h2>
+        <h2>Inspector</h2>
         <button
           type="button"
           className="icon-button"
@@ -259,6 +260,7 @@ export function Inspector() {
               </p>
             </>
           )}
+          <TrackDetailsPanel track={track} />
         </div>
       )}
     </aside>

@@ -14,7 +14,7 @@ beforeEach(() => {
 });
 
 const inspector = () =>
-  screen.getByRole("complementary", { name: "Quality inspector" });
+  screen.getByRole("complementary", { name: "Inspector" });
 
 describe("Quality inspector", () => {
   it("opens on the review queue and advances after a review", async () => {

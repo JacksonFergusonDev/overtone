@@ -4,6 +4,21 @@ import type { AuditProgress } from "./bindings/AuditProgress";
 import type { AuditReport } from "./bindings/AuditReport";
 import type { CommandError } from "./bindings/CommandError";
 import type { CommentChange } from "./bindings/CommentChange";
+import type { ConvertProgress } from "./bindings/ConvertProgress";
+import type { ConvertReport } from "./bindings/ConvertReport";
+import type { ExportProgress } from "./bindings/ExportProgress";
+import type { ExportReport } from "./bindings/ExportReport";
+import type { ExportSettings } from "./bindings/ExportSettings";
+import type { FieldValue } from "./bindings/FieldValue";
+import type { IntegrityProgress } from "./bindings/IntegrityProgress";
+import type { IntegrityRunReport } from "./bindings/IntegrityRunReport";
+import type { LookupProgress } from "./bindings/LookupProgress";
+import type { LookupReport } from "./bindings/LookupReport";
+import type { LookupSettings } from "./bindings/LookupSettings";
+import type { MetadataField } from "./bindings/MetadataField";
+import type { MetadataSuggestion } from "./bindings/MetadataSuggestion";
+import type { SuggestionId } from "./bindings/SuggestionId";
+import type { TrackDetails } from "./bindings/TrackDetails";
 import type { LibraryRoot } from "./bindings/LibraryRoot";
 import type { MirrorReport } from "./bindings/MirrorReport";
 import type { RekordboxExportPlan } from "./bindings/RekordboxExportPlan";
@@ -26,6 +41,30 @@ import type { Vibe } from "./bindings/Vibe";
 import type { VibeId } from "./bindings/VibeId";
 import type { WaveformPeaks } from "./bindings/WaveformPeaks";
 
+export type {
+  ConvertProgress,
+  ConvertReport,
+  ExportProgress,
+  ExportReport,
+  ExportSettings,
+  FieldValue,
+  IntegrityProgress,
+  IntegrityRunReport,
+  LookupProgress,
+  LookupReport,
+  LookupSettings,
+  MetadataField,
+  MetadataSuggestion,
+  SuggestionId,
+  TrackDetails,
+};
+export type { Conversion } from "./bindings/Conversion";
+export type { ConversionPlan } from "./bindings/ConversionPlan";
+export type { ExportFormat } from "./bindings/ExportFormat";
+export type { FieldSource } from "./bindings/FieldSource";
+export type { IntegrityCheck } from "./bindings/IntegrityCheck";
+export type { LoudnessReport } from "./bindings/LoudnessReport";
+export type { Provider } from "./bindings/Provider";
 export type {
   AppStatus,
   AuditProgress,
@@ -252,4 +291,83 @@ export const commands = {
     invoke<MirrorReport>("apply_tag_mirror", { vibe }),
   restoreComments: () => invoke<MirrorReport>("restore_comments"),
   syncHistory: (limit: number) => invoke<SyncRun[]>("sync_history", { limit }),
+
+  /** Field sources, pending suggestions, loudness, integrity, conversion. */
+  trackDetails: (trackId: TrackId) =>
+    invoke<TrackDetails>("track_details", { trackId }),
+  /** The DJ's own value; `null` blanks the field on purpose. */
+  setTrackField: (
+    trackId: TrackId,
+    field: MetadataField,
+    value: string | null,
+  ) => invoke<FieldValue>("set_track_field", { trackId, field, value }),
+  /** Drops the DJ's or an accepted lookup's value; the file's shows again. */
+  resetTrackField: (trackId: TrackId, field: MetadataField) =>
+    invoke<FieldValue>("reset_track_field", { trackId, field }),
+  listSuggestions: () => invoke<MetadataSuggestion[]>("list_suggestions"),
+  /** `replace` must be true when the field already holds another value. */
+  acceptSuggestion: (suggestionId: SuggestionId, replace: boolean) =>
+    invoke<FieldValue>("accept_suggestion", { suggestionId, replace }),
+  rejectSuggestion: (suggestionId: SuggestionId) =>
+    invoke<null>("reject_suggestion", { suggestionId }),
+  lookupSettings: () => invoke<LookupSettings>("lookup_settings"),
+  /** `null` leaves a value as it is; an empty string removes it. */
+  setLookupSettings: (
+    acoustidKey: string | null,
+    discogsToken: string | null,
+    contact: string | null,
+  ) =>
+    invoke<LookupSettings>("set_lookup_settings", {
+      acoustidKey,
+      discogsToken,
+      contact,
+    }),
+  /**
+   * Looks up the given tracks, or every track not looked up yet for null.
+   * Shares the background job slot with audits (`cancelAudit` stops it).
+   */
+  lookupTracks: (
+    trackIds: TrackId[] | null,
+    onProgress?: (progress: LookupProgress) => void,
+  ) =>
+    invoke<LookupReport>("lookup_tracks", {
+      trackIds,
+      onProgress: channel(onProgress),
+    }),
+  /** Checks the given tracks, or every unchecked or changed one for null. */
+  checkIntegrity: (
+    trackIds: TrackId[] | null,
+    onProgress?: (progress: IntegrityProgress) => void,
+  ) =>
+    invoke<IntegrityRunReport>("check_integrity", {
+      trackIds,
+      onProgress: channel(onProgress),
+    }),
+  /** Writes copies into `folder`; never replaces an existing file. */
+  exportTracks: (
+    trackIds: TrackId[],
+    folder: string,
+    settings: ExportSettings,
+    onProgress?: (progress: ExportProgress) => void,
+  ) =>
+    invoke<ExportReport>("export_tracks", {
+      trackIds,
+      folder,
+      settings,
+      onProgress: channel(onProgress),
+    }),
+  /** Previews converting the given tracks, or every WAV and AIFF for null. */
+  planConversion: (trackIds: TrackId[] | null) =>
+    invoke<ConvertReport>("plan_conversion", { trackIds }),
+  convertTracks: (
+    trackIds: TrackId[] | null,
+    onProgress?: (progress: ConvertProgress) => void,
+  ) =>
+    invoke<ConvertReport>("convert_tracks", {
+      trackIds,
+      onProgress: channel(onProgress),
+    }),
+  /** Deletes the FLAC Overtone wrote for a track (never the original). */
+  discardConversion: (trackId: TrackId) =>
+    invoke<boolean>("discard_conversion", { trackId }),
 };

@@ -34,3 +34,29 @@ pub struct RunningApps {
     pub rekordbox: bool,
     pub traktor: bool,
 }
+
+/// Everything the inspector shows about one track beyond its row: each
+/// field's value and source, pending lookup suggestions, loudness, the
+/// integrity check, and a conversion waiting for relocation.
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[ts(export)]
+pub struct TrackDetails {
+    pub track_id: overtone_core::model::TrackId,
+    pub fields: Vec<overtone_core::model::FieldValue>,
+    pub suggestions: Vec<overtone_core::model::MetadataSuggestion>,
+    pub loudness: Option<overtone_core::model::LoudnessReport>,
+    pub integrity: Option<overtone_core::model::IntegrityCheck>,
+    pub conversion: Option<overtone_core::model::Conversion>,
+}
+
+/// Which lookup credentials are set. The secrets themselves never go back
+/// to the webview.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export)]
+pub struct LookupSettings {
+    pub acoustid_key_set: bool,
+    pub discogs_token_set: bool,
+    pub contact: Option<String>,
+    /// Providers a lookup would use now.
+    pub providers: Vec<overtone_core::lookup::Provider>,
+}

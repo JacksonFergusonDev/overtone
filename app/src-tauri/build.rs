@@ -33,6 +33,20 @@ const COMMANDS: &[&str] = &[
     "apply_tag_mirror",
     "restore_comments",
     "sync_history",
+    "track_details",
+    "set_track_field",
+    "reset_track_field",
+    "list_suggestions",
+    "accept_suggestion",
+    "reject_suggestion",
+    "lookup_settings",
+    "set_lookup_settings",
+    "lookup_tracks",
+    "check_integrity",
+    "export_tracks",
+    "plan_conversion",
+    "convert_tracks",
+    "discard_conversion",
 ];
 
 fn main() {

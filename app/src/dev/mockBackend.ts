@@ -1,4 +1,5 @@
 import { mockIPC } from "@tauri-apps/api/mocks";
+import { createMetadataMock } from "./mockMetadata";
 import type {
   AppStatus,
   AuditProgress,
@@ -940,7 +941,29 @@ export function createMockBackend(): (
     }
   };
 
+  const metadata = createMetadataMock({
+    tracks: () => state.tracks,
+    find,
+    fail,
+    sleep,
+    send,
+    now: () => NOW,
+    jobs: {
+      running: () => state.auditRunning,
+      start: () => {
+        state.auditRunning = true;
+        state.cancelAudit = false;
+      },
+      stop: () => {
+        state.auditRunning = false;
+      },
+      cancelled: () => state.cancelAudit,
+    },
+  });
+
   return async (cmd, args = {}) => {
+    const job = metadata.async[cmd];
+    if (job) return structuredClone(await job(args));
     switch (cmd) {
       case "scan_library":
         return scan(args);
@@ -950,7 +973,7 @@ export function createMockBackend(): (
         state.cancelAudit = true;
         return null;
       default: {
-        const handler = handlers[cmd];
+        const handler = handlers[cmd] ?? metadata.sync[cmd];
         if (!handler) fail("internal", `mock backend has no command ${cmd}`);
         return structuredClone(handler(args));
       }

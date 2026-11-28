@@ -132,6 +132,10 @@ Check at the default window size (1280x860) and the minimum (840x560). See [Usin
 - [ ] Dragging selected rows onto a vibe in the sidebar tags them.
 - [ ] The Sync view's Serato Apply, Rekordbox Export, Rekordbox My Tags Apply, Traktor Apply, and Comment tag Apply each match the CLI's result for the same library (run them on the throwaway setups described in the sections above).
 - [ ] Focus rings are visible on every control, and text contrast is comfortable in a dark room.
+- [ ] The inspector's Metadata, Suggestions, and Files sections fit at 840x560 without clipped buttons, and editing a field with the keyboard (Enter saves, Esc cancels) feels quick.
+- [ ] **Look this track up** in a real window with a real network fills Suggestions, and Accept or Replace changes the field's source pill.
+- [ ] **Export a copy…** opens the folder picker and the copy plays in Finder's Quick Look. **Convert to FLAC…** on a `local/` clone shows the confirm dialog, then the inspector shows the FLAC, and **Discard the FLAC** removes it.
+- [ ] **Check files** and batch **Convert to FLAC…** in Settings show progress, Cancel stops them, and an audit can't start while they run.
 
 ## Traktor collection sync
 

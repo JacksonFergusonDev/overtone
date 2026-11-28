@@ -16,6 +16,7 @@ import {
 import { useLibrary } from "../store/library";
 import { notify, notifyError } from "../store/toasts";
 import { useUi } from "../store/ui";
+import { FilesCard, LookupCard } from "./FilesSettings";
 
 export function ProgressBar({
   value,
@@ -300,6 +301,8 @@ export function SettingsView() {
       <Folders />
       <Scan />
       <Audit />
+      <LookupCard />
+      <FilesCard />
       <section className="card" aria-labelledby="settings-about">
         <h2 id="settings-about">About</h2>
         <dl className="facts">

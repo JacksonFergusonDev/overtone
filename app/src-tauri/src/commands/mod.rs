@@ -11,7 +11,9 @@ use overtone_core::model::VibePath;
 
 use crate::error::CommandError;
 
+pub mod files;
 pub mod library;
+pub mod metadata;
 pub mod quality;
 pub mod sync;
 pub mod tags;

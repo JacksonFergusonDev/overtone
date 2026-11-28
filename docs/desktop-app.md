@@ -45,6 +45,17 @@ The audit flags tracks whose spectrum suggests a lossy source, such as an MP3 re
 
 In the Library view, press `I` to show or hide the inspector for the focused track.
 
+## Check metadata, sound, and files
+
+The inspector (`I`) also shows, below the quality section, everything Overtone knows about the focused track.
+
+- **Sound:** loudness (LUFS), true peak, loudness range, clipping, and silence before the music, measured by the audit. **Check the file** decodes the whole track with ffmpeg and reports decode errors. Errors only in junk at the very start or end are called out separately, because the music itself is fine.
+- **Metadata:** each field shows where its value came from: **file**, **you**, or the lookup service you accepted it from. Choose **Edit** to set your own value, which rescans never replace, and **Revert** to go back to the file's value. **Show all fields** includes empty ones. Values you set aren't written into the audio file yet; exports use them.
+- **Suggestions:** **Look this track up** searches MusicBrainz, and AcoustID and Discogs once you add keys in Settings. Each result waits here with its source and match strength. Choose **Accept** (or **Replace** when it would change a value you already have) or **Reject**. Rejected values never come back. Lookups never touch Comment, Grouping, or your Genre.
+- **Files:** pick a format and choose **Export a copy…** to write a copy into a folder you pick, with your tags and artwork ([Export copies](export.md)). For WAV and AIFF tracks, **Convert to FLAC…** shows what carries over and writes a verified FLAC beside the original ([Convert to FLAC](convert.md)). The original stays the track your DJ software uses; **Discard the FLAC** deletes the new file.
+
+In **Settings**, **Metadata lookup** holds your AcoustID key, Discogs token, and optional MusicBrainz contact, and **Look up new tracks** looks up every track that hasn't been looked up yet. **Files** has **Check files** to check every track for decode errors and **Convert to FLAC…** for every WAV and AIFF track. Both need ffmpeg, and you can cancel them; finished tracks keep their results.
+
 ## Sync to your DJ software
 
 Open **Sync** in the sidebar. The top of the view shows whether Serato, Rekordbox, and Traktor are running.

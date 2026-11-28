@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "../App";
 import { TableRectContext } from "../components/TrackTable";
+import { resetDetails } from "../store/details";
 import { resetJobs } from "../store/jobs";
 import { resetLibrary } from "../store/library";
 import { resetPlayer } from "../store/player";
@@ -17,6 +18,7 @@ export function resetStores(): void {
   resetUi();
   resetPlayer();
   resetJobs();
+  resetDetails();
   useToasts.setState({ toasts: [] });
   useConfirm.setState({ request: null, resolve: null });
 }

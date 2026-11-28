@@ -2,7 +2,9 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     "dialog:allow-open",
@@ -37,6 +39,20 @@
     "allow-plan-tag-mirror",
     "allow-apply-tag-mirror",
     "allow-restore-comments",
-    "allow-sync-history"
+    "allow-sync-history",
+    "allow-track-details",
+    "allow-set-track-field",
+    "allow-reset-track-field",
+    "allow-list-suggestions",
+    "allow-accept-suggestion",
+    "allow-reject-suggestion",
+    "allow-lookup-settings",
+    "allow-set-lookup-settings",
+    "allow-lookup-tracks",
+    "allow-check-integrity",
+    "allow-export-tracks",
+    "allow-plan-conversion",
+    "allow-convert-tracks",
+    "allow-discard-conversion"
   ]
 }

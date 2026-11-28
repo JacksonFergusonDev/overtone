@@ -17,20 +17,44 @@ export interface JobState<Progress, Report> {
   error: string | null;
 }
 
+/** A lookup, integrity check, export, or conversion (see `store/details`). */
+export interface BackgroundJob {
+  kind: "lookup" | "integrity" | "export" | "convert" | null;
+  running: boolean;
+  done: number;
+  total: number;
+  cancelling: boolean;
+}
+
 export interface JobsState {
   scan: JobState<ScanProgress, ScanReport>;
   audit: JobState<AuditProgress, AuditReport> & { cancelling: boolean };
+  /** Shares the backend's job slot with the audit: one runs at a time. */
+  background: BackgroundJob;
 }
+
+const idleBackground: BackgroundJob = {
+  kind: null,
+  running: false,
+  done: 0,
+  total: 0,
+  cancelling: false,
+};
 
 const idle = { running: false, progress: null, report: null, error: null };
 
 export const useJobs = create<JobsState>(() => ({
   scan: idle,
   audit: { ...idle, cancelling: false },
+  background: idleBackground,
 }));
 
 export function resetJobs(): void {
-  useJobs.setState({ scan: idle, audit: { ...idle, cancelling: false } });
+  useJobs.setState({
+    scan: idle,
+    audit: { ...idle, cancelling: false },
+    background: idleBackground,
+  });
 }
 
 /** Fraction done from 0 to 1, or null while the total isn't known yet. */
@@ -80,7 +104,8 @@ export async function runScan(refresh: boolean): Promise<void> {
 
 /** Audits the given tracks, or every pending track for null. */
 export async function runAudit(trackIds: TrackId[] | null): Promise<void> {
-  if (useJobs.getState().audit.running) return;
+  if (useJobs.getState().audit.running || useJobs.getState().background.running)
+    return;
   useJobs.setState({
     audit: {
       running: true,

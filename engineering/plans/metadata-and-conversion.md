@@ -116,7 +116,7 @@ No open-source tool converts formats while keeping DJ data across Serato, Rekord
 
 ## Desktop surfaces for Phase 6
 
-Steps 2 and 4 shipped in the CLI first. The desktop app still needs: field sources and the suggestion review flow (with step 5), an integrity check action in Settings beside the audit, and integrity results in the inspector and a "Damaged" filter. Do these together with step 5's UI, before step 8a.
+Done Nov 27. Fourteen Tauri commands (`commands/metadata.rs` and `commands/files.rs`) back a track details panel in the inspector (sound and integrity, field sources with edit and revert, suggestion review, export, and convert) and Settings cards for lookup keys, batch lookup, integrity checks, and batch conversion. Lookup, integrity, export, and conversion share one background job slot with the audit (`useJobs().background`), so only one runs at a time. Still to do: a "Damaged" filter chip in the library (needs integrity status in `list_tracks`), and writing accepted and user values into files.
 
 ## Deferred
 
