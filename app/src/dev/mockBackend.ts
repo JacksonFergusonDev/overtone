@@ -49,7 +49,7 @@ import type {
  *   event, with a short delay between audit tracks).
  */
 
-const ANALYZER_VERSION = 1;
+const ANALYZER_VERSION = 2;
 const NOW = 1_780_000_000_000;
 const DAY = 86_400_000;
 
@@ -932,6 +932,8 @@ export function createMockBackend(): (
         flagged,
         analyzer_version: ANALYZER_VERSION,
         elapsed_ms: verdicts.length * 8,
+        decoded_with_ffmpeg: 0,
+        ffmpeg_available: true,
       };
     } finally {
       state.auditRunning = false;
