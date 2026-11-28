@@ -162,7 +162,12 @@ pub fn scan_roots_with(
 
     let walks = walk_all(roots, on_progress, &mut report);
     let stored = stored_states(library, &walks)?;
-    let found = unique_files(&walks);
+    // FLACs from conversions waiting for relocation aren't tracks yet.
+    let waiting = library.pending_conversion_outputs()?;
+    let found: Vec<&FoundFile> = unique_files(&walks)
+        .into_iter()
+        .filter(|file| !waiting.contains(&file.path))
+        .collect();
 
     let mut reappeared = Vec::new();
     let mut to_read = Vec::new();

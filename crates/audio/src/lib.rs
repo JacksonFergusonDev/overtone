@@ -10,6 +10,7 @@
 //! `overtone-model`.
 
 pub mod analysis;
+pub mod convert;
 mod error;
 pub mod hash;
 pub mod tags;

@@ -4,6 +4,7 @@
 //! sync history live here as the single source of truth shared by the
 //! desktop app and CLI.
 
+mod conversions;
 mod error;
 mod integrity;
 mod metadata;

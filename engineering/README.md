@@ -9,6 +9,7 @@
 - [Audio-only content hashing](decisions/content-hashing.md)
 - [ffmpeg as a child process](decisions/ffmpeg.md)
 - [Metadata lookup](decisions/metadata-lookup.md)
+- [Lossless conversion to FLAC](decisions/lossless-conversion.md)
 - [DJ software sync: Serato, Rekordbox, and Traktor Rust ecosystems](decisions/dj-software-sync.md)
 - [Vibe tags in audio files and DJ software](decisions/vibe-tags.md)
 - [Writing Comment tags safely](decisions/tag-writing.md)

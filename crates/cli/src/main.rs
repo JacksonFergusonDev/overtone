@@ -12,7 +12,7 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand};
 use overtone_core::CoreError;
 
-use crate::commands::{audit, export, meta, roots, scan, sync, tag, tracks, vibes};
+use crate::commands::{audit, convert, export, meta, roots, scan, sync, tag, tracks, vibes};
 use crate::output::Output;
 
 #[derive(Debug, Parser)]
@@ -64,6 +64,10 @@ enum Command {
     /// Mirror vibes into Comment tags in your audio files (opt-in).
     #[command(subcommand)]
     Tag(tag::TagCommand),
+    /// Convert WAV and AIFF tracks to FLAC beside the originals, verified
+    /// sample for sample, with tags, artwork, and Serato cues carried over.
+    /// Previews unless --write.
+    Convert(convert::ConvertArgs),
     /// Write copies of tracks in another format (CDJ-safe AIFF, AAC, MP3,
     /// FLAC, WAV) into a folder. Originals are only read.
     Export(export::ExportArgs),
@@ -111,6 +115,7 @@ fn run(cli: &Cli, out: &Output) -> Result<(), CoreError> {
         Command::Ls(args) => tracks::ls(&library, args, out),
         Command::Show(args) => tracks::show(&library, args, out),
         Command::Vibe(command) => vibes::run(&mut library, command, out),
+        Command::Convert(args) => convert::run(&library, args, out),
         Command::Export(args) => export::run(&library, args, out),
         Command::Sync(command) => sync::run(&library, command, out),
     }

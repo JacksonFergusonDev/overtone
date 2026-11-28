@@ -52,6 +52,15 @@ Use a scratch library (`OVERTONE_LIBRARY=/tmp/lookup.sqlite`) over a few clones 
 - [ ] A wrong key or token reports that the provider refused it and the run carries on with the others.
 - [ ] Accept and reject a few suggestions; `ot meta show` shows accepted values as "lookup: <provider>", and rejected ones don't come back on the next lookup.
 
+## Lossless conversion
+
+Convert clones only: `cp -c` a few Serato-analysed WAV and AIFF files into a scratch folder, add it with `ot roots add`, scan, and run `ot convert --all --write`.
+
+- [ ] Add the converted FLACs to Serato DJ (in a throwaway library): cue points, loops, colors, beatgrid, and the waveform overview match the original WAV's, without reanalysis.
+- [ ] Rekordbox and Traktor read the FLAC's title, artist, BPM, key, Comment, and artwork.
+- [ ] Listen to a converted FLAC against its WAV: identical (the converter already compares every sample; this checks playback).
+- [ ] `ot convert <track> --discard` removes only the FLAC.
+
 ## Export copies
 
 - [ ] `ot export --vibe <vibe> --to /Volumes/<USB>` (the default `cdj` format): the AIFF copies play on a CDJ, including an older one without FLAC support, with title, artist, and artwork showing.

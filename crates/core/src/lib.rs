@@ -13,6 +13,7 @@ use thiserror::Error;
 use ts_rs::TS;
 
 pub mod audit;
+pub mod convert;
 pub mod export;
 pub mod integrity;
 pub mod lookup;

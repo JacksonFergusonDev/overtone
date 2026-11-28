@@ -10,11 +10,11 @@
 
 mod meta;
 pub mod raw;
-mod read;
+pub(crate) mod read;
 mod splice;
 mod verify;
 pub mod vibes;
-mod write;
+pub(crate) mod write;
 
 use std::path::Path;
 
