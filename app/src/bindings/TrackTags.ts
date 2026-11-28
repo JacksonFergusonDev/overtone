@@ -7,4 +7,20 @@ export type TrackTags = { title: string | null, artist: string | null, album: st
 /**
  * Musical key as written in the tag (for example `8A` or `Am`).
  */
-key: string | null, comment: string | null, grouping: string | null, };
+key: string | null, comment: string | null, grouping: string | null, 
+/**
+ * The label's catalog number, such as `HOSP123`.
+ */
+catalog_number: string | null, isrc: string | null, 
+/**
+ * Release date as written in the tag (`2021`, `2021-06`, or `2021-06-04`).
+ */
+release_date: string | null, 
+/**
+ * Track number as written, such as `3` or `3/12`.
+ */
+track_number: string | null, 
+/**
+ * Disc number as written, such as `1` or `1/2`.
+ */
+disc_number: string | null, };

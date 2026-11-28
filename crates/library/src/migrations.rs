@@ -15,6 +15,7 @@ const MIGRATIONS: &[&str] = &[
     include_str!("../migrations/0005_lookup_runs.sql"),
     include_str!("../migrations/0006_loudness.sql"),
     include_str!("../migrations/0007_conversions.sql"),
+    include_str!("../migrations/0008_more_tags.sql"),
 ];
 
 /// Schema version this build creates and understands.

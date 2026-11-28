@@ -38,7 +38,7 @@ How the work runs: before each feature, a research subagent surveys crates; cont
 
 Phase 6 is the current work. Follow the [Phase 6 plan](engineering/plans/metadata-and-conversion.md) in order and mark each step done there and here as it lands. Its key rules: provenance (step 2) lands before any lookup (step 5) so fetched values never mix with the DJ's own; OneTagger is a source of ported ideas and code, not a dependency; ffmpeg runs as a bundled child process and Symphonia verifies its output.
 
-1. Read catalog number, ISRC, release date, and track and disc numbers from files so field writes can cover them ([plan](engineering/plans/metadata-and-conversion.md#desktop-surfaces-for-phase-6)).
+1. Run the field-write check on `local/` clones for the five release-detail fields (catalog number, ISRC, release date, track and disc numbers; reader version 2, migration 0008), as done for the first 11 fields ([plan](engineering/plans/metadata-and-conversion.md#desktop-surfaces-for-phase-6)).
 2. The manual verification pass ([checklist](engineering/manual-verification.md)), on throwaway DJ libraries, then fix what it turns up. It must happen before step 8b.
 3. Step 8b: conversion relocation in DJ apps, one app at a time. Which app goes first is undecided.
 4. Desktop polish: continuous playback, a target picker for Serato, Comment mirroring, and Traktor collections, and Traktor `INFO/@COMMENT` hashtag mirroring (noted in [vibe tags](engineering/decisions/vibe-tags.md)).

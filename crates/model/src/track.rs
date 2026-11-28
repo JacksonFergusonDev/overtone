@@ -111,6 +111,20 @@ pub struct TrackTags {
     pub key: Option<String>,
     pub comment: Option<String>,
     pub grouping: Option<String>,
+    /// The label's catalog number, such as `HOSP123`.
+    #[serde(default)]
+    pub catalog_number: Option<String>,
+    #[serde(default)]
+    pub isrc: Option<String>,
+    /// Release date as written in the tag (`2021`, `2021-06`, or `2021-06-04`).
+    #[serde(default)]
+    pub release_date: Option<String>,
+    /// Track number as written, such as `3` or `3/12`.
+    #[serde(default)]
+    pub track_number: Option<String>,
+    /// Disc number as written, such as `1` or `1/2`.
+    #[serde(default)]
+    pub disc_number: Option<String>,
 }
 
 /// A track in the library: one immutable file on disk.

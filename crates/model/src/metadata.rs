@@ -114,12 +114,12 @@ impl MetadataField {
             Self::Key => tags.key.clone(),
             Self::Comment => tags.comment.clone(),
             Self::Grouping => tags.grouping.clone(),
-            Self::CatalogNumber
-            | Self::Isrc
-            | Self::ReleaseDate
-            | Self::TrackNumber
-            | Self::DiscNumber
-            | Self::StoreGenre => None,
+            Self::CatalogNumber => tags.catalog_number.clone(),
+            Self::Isrc => tags.isrc.clone(),
+            Self::ReleaseDate => tags.release_date.clone(),
+            Self::TrackNumber => tags.track_number.clone(),
+            Self::DiscNumber => tags.disc_number.clone(),
+            Self::StoreGenre => None,
         }
     }
 }

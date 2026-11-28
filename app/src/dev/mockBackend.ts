@@ -306,6 +306,11 @@ function generate(): Internal {
               ])
             : null,
         grouping: null,
+        catalog_number: null,
+        isrc: null,
+        release_date: null,
+        track_number: null,
+        disc_number: null,
       },
       vibes: vibeIds,
       quality,

@@ -301,7 +301,10 @@ fn refuses_bad_values_unwritable_fields_and_duplicates() {
     refused(&[edit(MetadataField::Year, Some("soon"))], "isn't a year");
     refused(&[edit(MetadataField::Bpm, Some("fast"))], "isn't a BPM");
     refused(&[edit(MetadataField::Comment, Some("x"))], "doesn't write");
-    refused(&[edit(MetadataField::Isrc, Some("x"))], "doesn't write");
+    refused(
+        &[edit(MetadataField::StoreGenre, Some("x"))],
+        "doesn't write",
+    );
     refused(
         &[
             edit(MetadataField::Title, Some("a")),
@@ -309,4 +312,112 @@ fn refuses_bad_values_unwritable_fields_and_duplicates() {
         ],
         "twice",
     );
+}
+
+fn txxx(description: &str, value: &str) -> Vec<u8> {
+    let mut body = vec![0];
+    body.extend_from_slice(description.as_bytes());
+    body.push(0);
+    body.extend_from_slice(value.as_bytes());
+    body
+}
+
+#[test]
+fn writes_release_details_in_id3v24_and_id3v23() {
+    let dir = TempDir::new().expect("tempdir");
+    for major in [4u8, 3] {
+        let tag = id3_tag(
+            major,
+            &[
+                ("TIT2", 0, text("Title")),
+                ("TXXX", 0, txxx("Catalognumber", "OLD001")),
+                ("TXXX", 0, txxx("SERATO_PLAYCOUNT", "7")),
+                ("GEOB", 0, geob("Serato Markers2", &[1, 2, 3])),
+            ],
+            256,
+        );
+        let path = mp3(dir.path(), &format!("v2{major}.mp3"), &tag);
+        let before = binary(&frames(&path, Container::Mp3))
+            .into_iter()
+            .filter(|f| f.id != "TXXX" || !f.body.windows(6).any(|w| w == b"Catalo"))
+            .collect::<Vec<_>>();
+        write_fields(
+            &roots(),
+            &path,
+            &[
+                edit(MetadataField::CatalogNumber, Some("HOSP123")),
+                edit(MetadataField::Isrc, Some("GBCFB2100001")),
+                edit(MetadataField::ReleaseDate, Some("2021-06-04")),
+                edit(MetadataField::TrackNumber, Some("3/12")),
+                edit(MetadataField::DiscNumber, Some("1/2")),
+            ],
+        )
+        .expect("write");
+        let tags = read_metadata(&path).expect("read").tags;
+        assert_eq!(tags.catalog_number.as_deref(), Some("HOSP123"));
+        assert_eq!(tags.isrc.as_deref(), Some("GBCFB2100001"));
+        assert_eq!(tags.release_date.as_deref(), Some("2021-06-04"));
+        assert_eq!(tags.track_number.as_deref(), Some("3/12"));
+        assert_eq!(tags.disc_number.as_deref(), Some("1/2"));
+        let after = frames(&path, Container::Mp3);
+        let catalog: Vec<_> = after
+            .iter()
+            .filter(|f| f.id == "TXXX")
+            .filter_map(raw::decode_text_frame)
+            .filter(|s| s[0].eq_ignore_ascii_case("catalognumber"))
+            .collect();
+        assert_eq!(
+            catalog,
+            [vec!["Catalognumber".to_string(), "HOSP123".into()]]
+        );
+        let ids: Vec<&str> = after.iter().map(|f| f.id.as_str()).collect();
+        if major == 4 {
+            assert!(ids.contains(&"TDRL"));
+        } else {
+            assert!(!ids.contains(&"TDRL"), "v2.3 uses TXXX:RELEASEDATE");
+        }
+        for frame in &before {
+            assert!(after.contains(frame), "{} survives", frame.id);
+        }
+    }
+}
+
+#[test]
+fn flac_release_details_and_bad_dates() {
+    let dir = TempDir::new().expect("tempdir");
+    let path = flac_with_blocks(
+        dir.path(),
+        "r.flac",
+        &[
+            (4, vorbis_block("ref", &["TITLE=Song", "TRACKNUMBER=1"])),
+            (1, vec![0; 256]),
+        ],
+    );
+    write_fields(
+        &roots(),
+        &path,
+        &[
+            edit(MetadataField::TrackNumber, Some("4")),
+            edit(MetadataField::CatalogNumber, Some("CRIT200")),
+            edit(MetadataField::ReleaseDate, Some("2021")),
+        ],
+    )
+    .expect("write");
+    assert_eq!(
+        vorbis_entries(&path),
+        [
+            "TITLE=Song",
+            "TRACKNUMBER=4",
+            "CATALOGNUMBER=CRIT200",
+            "RELEASEDATE=2021"
+        ]
+    );
+    match write_fields(
+        &roots(),
+        &path,
+        &[edit(MetadataField::ReleaseDate, Some("June 2021"))],
+    ) {
+        Err(AudioError::WriteRefused { reason, .. }) => assert!(reason.contains("isn't a date")),
+        other => panic!("expected a refusal, got {other:?}"),
+    }
 }

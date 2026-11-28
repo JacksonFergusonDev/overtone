@@ -235,6 +235,22 @@ pub(crate) fn text_body(major: u8, old: Option<&RawFrame>, text: &str) -> Vec<u8
     body
 }
 
+/// The body of a `TXXX` frame: `description`, then `text`, in the old
+/// frame's encoding when both fit it.
+pub(crate) fn user_text_body(
+    major: u8,
+    old: Option<&RawFrame>,
+    description: &str,
+    text: &str,
+) -> Vec<u8> {
+    let both = format!("{description}{text}");
+    let encoding = pick_encoding(major, old.and_then(|f| f.body.first().copied()), &both);
+    let mut body = vec![encoding];
+    body.extend_from_slice(&encode(encoding, description, true));
+    body.extend_from_slice(&encode(encoding, text, false));
+    body
+}
+
 /// Keeps `old` when it can hold `text` in this ID3 version, else picks
 /// Latin-1 for Latin-1 text and UTF-16 otherwise.
 fn pick_encoding(major: u8, old: Option<u8>, text: &str) -> u8 {

@@ -31,7 +31,7 @@ pub use write::write_comment;
 
 /// Version of the metadata reader. Bump it when [`read_metadata`] starts
 /// reading more or reading better, so the next scan rereads every file.
-pub const READER_VERSION: u32 = 1;
+pub const READER_VERSION: u32 = 2;
 
 /// Everything the scanner needs from a file's headers and tags.
 #[derive(Debug, Clone, PartialEq, Default)]

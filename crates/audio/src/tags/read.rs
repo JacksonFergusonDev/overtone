@@ -370,6 +370,16 @@ pub(crate) fn id3_tags(tag: Option<&Id3v2Tag>, v1: Option<&Id3v1Tag>) -> TrackTa
         // iTunes 12.5+ writes Grouping to GRP1 and reuses TIT1 for Work;
         // everything else uses TIT1. Prefer GRP1 when present.
         tags.grouping = text("GRP1").or_else(|| text("TIT1"));
+        tags.catalog_number = id3_user_text(tag, "CATALOGNUMBER");
+        tags.isrc = text("TSRC");
+        tags.release_date = match tag.get(&frame_id("TDRL")) {
+            Some(Frame::Timestamp(frame)) => clean(Some(frame.timestamp.to_string())),
+            Some(Frame::Text(frame)) => clean(Some(frame.value.as_ref())),
+            _ => None,
+        }
+        .or_else(|| id3_user_text(tag, "RELEASEDATE"));
+        tags.track_number = text("TRCK");
+        tags.disc_number = text("TPOS");
     }
     if let Some(v1) = v1 {
         tags.title = tags.title.or_else(|| clean(v1.title()));
@@ -378,6 +388,16 @@ pub(crate) fn id3_tags(tag: Option<&Id3v2Tag>, v1: Option<&Id3v1Tag>) -> TrackTa
         tags.year = tags.year.or_else(|| v1.year.map(i32::from));
     }
     tags
+}
+
+/// The first `TXXX` frame whose description matches, ignoring case.
+fn id3_user_text(tag: &Id3v2Tag, description: &str) -> Option<String> {
+    tag.iter().find_map(|frame| match frame {
+        Frame::UserText(f) if f.description.eq_ignore_ascii_case(description) => {
+            clean(Some(f.content.as_ref()))
+        }
+        _ => None,
+    })
 }
 
 fn vorbis_tags(tag: &VorbisComments) -> TrackTags {
@@ -399,6 +419,11 @@ fn vorbis_tags(tag: &VorbisComments) -> TrackTags {
         key: first(&["INITIALKEY", "KEY"]),
         comment: exact(tag.get("COMMENT")),
         grouping: first(&["GROUPING"]),
+        catalog_number: first(&["CATALOGNUMBER"]),
+        isrc: first(&["ISRC"]),
+        release_date: first(&["RELEASEDATE"]),
+        track_number: first(&["TRACKNUMBER"]),
+        disc_number: first(&["DISCNUMBER"]),
     }
 }
 
@@ -440,7 +465,21 @@ fn mp4_tags(ilst: &Ilst) -> TrackTags {
         key: freeform("initialkey"),
         comment: atom_exact(ilst, &AtomIdent::Fourcc(*b"\xa9cmt")),
         grouping: fourcc(b"\xa9grp"),
+        catalog_number: freeform("CATALOGNUMBER"),
+        isrc: freeform("ISRC"),
+        release_date: freeform("RELEASEDATE"),
+        track_number: number_pair(ilst.track(), ilst.track_total()),
+        disc_number: number_pair(ilst.disk(), ilst.disk_total()),
     }
+}
+
+/// `3` or `3/12`, from an MP4 number and total.
+fn number_pair(number: Option<u32>, total: Option<u32>) -> Option<String> {
+    let number = number.filter(|n| *n > 0)?;
+    Some(match total.filter(|t| *t > 0) {
+        Some(total) => format!("{number}/{total}"),
+        None => number.to_string(),
+    })
 }
 
 fn atom_raw(ilst: &Ilst, ident: &AtomIdent<'_>) -> Option<String> {

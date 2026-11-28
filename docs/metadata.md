@@ -35,7 +35,7 @@ overtone-cli meta apply
 overtone-cli meta apply --write
 ```
 
-The first command previews each file's changes; `--write` writes them. Name tracks or add `--vibe <vibe>` to write only some. Overtone writes title, artist, album, album artist, remixer, label, genre, year, BPM, key, and grouping into MP3, WAV, AIFF, and FLAC files. Catalog number, ISRC, release date, track and disc numbers, and store genre stay in Overtone for now, and M4A files aren't written yet.
+The first command previews each file's changes; `--write` writes them. Name tracks or add `--vibe <vibe>` to write only some. Overtone writes title, artist, album, album artist, remixer, label, genre, year, BPM, key, grouping, catalog number, ISRC, release date, and track and disc numbers into MP3, WAV, AIFF, and FLAC files. Store genre stays in Overtone, and M4A files aren't written yet. A release date must be `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`.
 
 Each value goes into the tag your DJ software already reads it from. For example, a FLAC whose label is in `ORGANIZATION` keeps it there, and an MP3 with an iTunes `GRP1` grouping keeps using `GRP1`. Every write is checked before it replaces the file: Serato cues and beatgrids, artwork, every other tag, and the audio itself stay exactly as they were, and anything Overtone can't check is refused and left untouched, with the reason.
 

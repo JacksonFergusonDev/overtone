@@ -22,7 +22,7 @@ use super::{WriteOutcome, WriteReport, meta, parse_bpm};
 use crate::AudioError;
 
 /// The fields [`write_fields`] can write.
-pub const WRITABLE_FIELDS: [MetadataField; 11] = [
+pub const WRITABLE_FIELDS: [MetadataField; 16] = [
     MetadataField::Title,
     MetadataField::Artist,
     MetadataField::Album,
@@ -34,6 +34,11 @@ pub const WRITABLE_FIELDS: [MetadataField; 11] = [
     MetadataField::Bpm,
     MetadataField::Key,
     MetadataField::Grouping,
+    MetadataField::CatalogNumber,
+    MetadataField::Isrc,
+    MetadataField::ReleaseDate,
+    MetadataField::TrackNumber,
+    MetadataField::DiscNumber,
 ];
 
 /// One field to write. `None` (or blank) clears it.
@@ -48,10 +53,12 @@ enum Kind {
     Text,
     Year,
     Bpm,
+    Date,
 }
 
 /// Where a field lives. The scanner reads the first ID3 frame, or the first
-/// Vorbis key, in these lists that holds a usable value.
+/// Vorbis key, in these lists that holds a usable value. An ID3 entry is a
+/// frame ID, or `TXXX:DESCRIPTION` for a user-defined text frame.
 struct Spec {
     kind: Kind,
     id3: &'static [&'static str],
@@ -102,14 +109,38 @@ fn spec(field: MetadataField) -> Option<Spec> {
             id3_new_v4: "TIT1",
             vorbis: &["GROUPING"],
         },
+        MetadataField::CatalogNumber => text(&["TXXX:CATALOGNUMBER"], &["CATALOGNUMBER"]),
+        MetadataField::Isrc => text(&["TSRC"], &["ISRC"]),
+        MetadataField::TrackNumber => text(&["TRCK"], &["TRACKNUMBER"]),
+        MetadataField::DiscNumber => text(&["TPOS"], &["DISCNUMBER"]),
+        MetadataField::ReleaseDate => Spec {
+            kind: Kind::Date,
+            id3: &["TDRL", "TXXX:RELEASEDATE"],
+            id3_new_v3: "TXXX:RELEASEDATE",
+            id3_new_v4: "TDRL",
+            vorbis: &["RELEASEDATE"],
+        },
         _ => return None,
     })
+}
+
+/// `2021`, `2021-06`, or `2021-06-04`: the dates ID3v2.4 timestamps hold.
+fn is_date(text: &str) -> bool {
+    let parts: Vec<&str> = text.split('-').collect();
+    let digits =
+        |part: &str, len: usize| part.len() == len && part.bytes().all(|b| b.is_ascii_digit());
+    match parts.as_slice() {
+        [y] => digits(y, 4),
+        [y, m] => digits(y, 4) && digits(m, 2),
+        [y, m, d] => digits(y, 4) && digits(m, 2) && digits(d, 2),
+        _ => false,
+    }
 }
 
 /// Whether the scanner would take `text` as this field's value.
 fn accepted(kind: Kind, text: &str) -> bool {
     match kind {
-        Kind::Text => text.split('\0').any(|part| !part.trim().is_empty()),
+        Kind::Text | Kind::Date => text.split('\0').any(|part| !part.trim().is_empty()),
         Kind::Year => parse_year(text).is_some(),
         Kind::Bpm => parse_bpm(text).is_some(),
     }
@@ -146,6 +177,10 @@ fn normalize(
         Kind::Bpm => parse_bpm(value)
             .map(|_| Some(value.to_string()))
             .ok_or_else(|| format!("{value:?} isn't a BPM")),
+        Kind::Date if is_date(value) => Ok(Some(value.to_string())),
+        Kind::Date => Err(format!(
+            "{value:?} isn't a date (use YYYY, YYYY-MM, or YYYY-MM-DD)"
+        )),
     }
 }
 
@@ -166,6 +201,11 @@ fn expected_tags(tags: &TrackTags, edits: &[(MetadataField, Option<String>)]) ->
             MetadataField::Grouping => out.grouping = text,
             MetadataField::Year => out.year = text.as_deref().and_then(parse_year),
             MetadataField::Bpm => out.bpm = text.as_deref().and_then(parse_bpm),
+            MetadataField::CatalogNumber => out.catalog_number = text,
+            MetadataField::Isrc => out.isrc = text,
+            MetadataField::ReleaseDate => out.release_date = text,
+            MetadataField::TrackNumber => out.track_number = text,
+            MetadataField::DiscNumber => out.disc_number = text,
             _ => {}
         }
     }
@@ -185,8 +225,9 @@ pub fn reads_as(field: MetadataField, tags: &TrackTags, value: Option<&str>) -> 
     }
 }
 
-/// One ID3 edit: frames with these IDs are replaced or removed, and
-/// afterwards exactly `write`'s frame (or none) holds the field.
+/// One ID3 edit: frames with these keys ([`frame_key`]) are replaced or
+/// removed, and afterwards exactly `write`'s frame (or none) holds the
+/// field.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Id3Op {
     pub owned: Vec<&'static str>,
@@ -211,19 +252,63 @@ pub(crate) struct FieldPlan {
     pub vorbis: Option<VorbisPlan>,
 }
 
+/// A frame's identity for field writes: its ID, or `TXXX:DESCRIPTION`
+/// (upper case) for a user-defined text frame.
+fn frame_key(frame: &RawFrame) -> String {
+    if frame.id == "TXXX"
+        && let Some(strings) = decode_text_frame(frame)
+    {
+        let description = strings.first().map_or("", String::as_str);
+        return format!("TXXX:{}", description.to_ascii_uppercase());
+    }
+    frame.id.clone()
+}
+
+/// The value a frame holds: its text, or for `TXXX` the text after the
+/// description.
 fn frame_text(frame: &RawFrame) -> Option<String> {
-    decode_text_frame(frame).map(|strings| strings.join("\0"))
+    let strings = decode_text_frame(frame)?;
+    let values = if frame.id == "TXXX" {
+        strings.get(1..).unwrap_or_default()
+    } else {
+        &strings[..]
+    };
+    Some(values.join("\0"))
+}
+
+/// A frame holding `text` under `key`, keeping `old`'s flags, encoding, and
+/// (for `TXXX`) description when there is one.
+fn build_frame(major: u8, key: &str, old: Option<&RawFrame>, text: &str) -> RawFrame {
+    let flags = old.map_or(0, |f| f.flags);
+    match key.strip_prefix("TXXX:") {
+        Some(new_description) => {
+            let description = old
+                .and_then(decode_text_frame)
+                .and_then(|s| s.into_iter().next())
+                .unwrap_or_else(|| new_description.to_string());
+            RawFrame {
+                id: "TXXX".into(),
+                flags,
+                body: splice::user_text_body(major, old, &description, text),
+            }
+        }
+        None => RawFrame {
+            id: key.to_string(),
+            flags,
+            body: text_body(major, old, text),
+        },
+    }
 }
 
 fn plan_id3(tag: &Id3v2Layout, edits: &[(Spec, Option<String>)]) -> Result<Vec<Id3Op>, String> {
     let mut ops = Vec::new();
     for (spec, value) in edits {
-        for id in spec.id3 {
-            if tag.frames.iter().filter(|f| f.id == *id).count() > 1 {
-                return Err(format!("it has several {id} frames"));
+        for key in spec.id3 {
+            if tag.frames.iter().filter(|f| frame_key(f) == *key).count() > 1 {
+                return Err(format!("it has several {key} frames"));
             }
         }
-        let frame = |id: &str| tag.frames.iter().find(|f| f.id == id);
+        let frame = |key: &str| tag.frames.iter().find(|f| frame_key(f) == key);
         let op = match value {
             None => Id3Op {
                 owned: spec.id3.to_vec(),
@@ -328,32 +413,23 @@ impl Editor for FieldsEditor<'_> {
         let mut written = vec![false; ops.len()];
         let mut frames = Vec::with_capacity(tag.frames.len() + ops.len());
         for frame in &tag.frames {
-            let owner = ops
-                .iter()
-                .position(|op| op.owned.contains(&frame.id.as_str()));
+            let key = frame_key(frame);
+            let owner = ops.iter().position(|op| op.owned.contains(&key.as_str()));
             let Some(i) = owner else {
                 frames.push(frame.clone());
                 continue;
             };
-            if let Some((id, text)) = &ops[i].write
-                && *id == frame.id
+            if let Some((target, text)) = &ops[i].write
+                && *target == key
                 && !written[i]
             {
-                frames.push(RawFrame {
-                    id: frame.id.clone(),
-                    flags: frame.flags,
-                    body: text_body(tag.major, Some(frame), text),
-                });
+                frames.push(build_frame(tag.major, target, Some(frame), text));
                 written[i] = true;
             }
         }
         for (op, done) in ops.iter().zip(written) {
-            if let (Some((id, text)), false) = (&op.write, done) {
-                frames.push(RawFrame {
-                    id: (*id).to_string(),
-                    flags: 0,
-                    body: text_body(tag.major, None, text),
-                });
+            if let (Some((target, text)), false) = (&op.write, done) {
+                frames.push(build_frame(tag.major, target, None, text));
             }
         }
         Ok(frames)
@@ -386,7 +462,7 @@ pub(crate) fn check_id3(
         tag.map_or_else(Vec::new, |t| {
             t.frames
                 .iter()
-                .filter(|f| !owned.contains(f.id.as_str()))
+                .filter(|f| !owned.contains(frame_key(f).as_str()))
                 .cloned()
                 .collect()
         })
@@ -410,13 +486,12 @@ pub(crate) fn check_id3(
         let found: Vec<&RawFrame> = temp_tag
             .frames
             .iter()
-            .filter(|f| op.owned.contains(&f.id.as_str()))
+            .filter(|f| op.owned.contains(&frame_key(f).as_str()))
             .collect();
         match (&op.write, found.as_slice()) {
             (None, []) => {}
-            (Some((id, text)), [frame])
-                if frame.id == *id
-                    && decode_text_frame(frame).as_deref() == Some(std::slice::from_ref(text)) => {}
+            (Some((key, text)), [frame])
+                if frame_key(frame) == *key && frame_text(frame).as_ref() == Some(text) => {}
             _ => {
                 return Err((
                     "field value",
@@ -425,7 +500,7 @@ pub(crate) fn check_id3(
                         op.write,
                         found
                             .iter()
-                            .map(|f| (f.id.clone(), decode_text_frame(f)))
+                            .map(|f| (frame_key(f), frame_text(f)))
                             .collect::<Vec<_>>()
                     ),
                 ));

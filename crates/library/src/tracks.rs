@@ -46,7 +46,7 @@ pub struct StoredFileState {
 const TRACK_COLUMNS: &str = "id, path, file_size, modified_at, audio_hash, format, \
     sample_rate_hz, bit_depth, channels, bitrate_kbps, duration_ms, title, artist, album, \
     album_artist, remixer, label, genre, year, bpm, musical_key, comment, grouping, added_at, \
-    missing_since";
+    missing_since, catalog_number, isrc, release_date, track_number, disc_number";
 
 impl Library {
     /// Inserts or refreshes the record for a scanned file, matched by exact path.
@@ -257,7 +257,9 @@ fn upsert_in(
                  sample_rate_hz = ?6, bit_depth = ?7, channels = ?8, bitrate_kbps = ?9, \
                  duration_ms = ?10, title = ?11, artist = ?12, album = ?13, album_artist = ?14, \
                  remixer = ?15, label = ?16, genre = ?17, year = ?18, bpm = ?19, musical_key = ?20, \
-                 comment = ?21, grouping = ?22, updated_at = ?23, missing_since = NULL WHERE id = ?1",
+                 comment = ?21, grouping = ?22, updated_at = ?23, catalog_number = ?24, \
+                 isrc = ?25, release_date = ?26, track_number = ?27, disc_number = ?28, \
+                 missing_since = NULL WHERE id = ?1",
                 params![
                     id,
                     scanned.file_size,
@@ -282,6 +284,11 @@ fn upsert_in(
                     t.comment,
                     t.grouping,
                     now,
+                    t.catalog_number,
+                    t.isrc,
+                    t.release_date,
+                    t.track_number,
+                    t.disc_number,
                 ],
             )?;
             Ok((TrackId(id), UpsertOutcome::Updated))
@@ -291,8 +298,9 @@ fn upsert_in(
                 "INSERT INTO tracks (path, file_size, modified_at, audio_hash, format, \
                  sample_rate_hz, bit_depth, channels, bitrate_kbps, duration_ms, title, artist, \
                  album, album_artist, remixer, label, genre, year, bpm, musical_key, comment, \
-                 grouping, added_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, \
-                 ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?23)",
+                 grouping, added_at, updated_at, catalog_number, isrc, release_date, track_number, \
+                 disc_number) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, \
+                 ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?23, ?24, ?25, ?26, ?27, ?28)",
                 params![
                     scanned.path,
                     scanned.file_size,
@@ -317,6 +325,11 @@ fn upsert_in(
                     t.comment,
                     t.grouping,
                     now,
+                    t.catalog_number,
+                    t.isrc,
+                    t.release_date,
+                    t.track_number,
+                    t.disc_number,
                 ],
             )?;
             Ok((TrackId(tx.last_insert_rowid()), UpsertOutcome::Inserted))
@@ -367,6 +380,11 @@ fn track_from_row(row: &Row<'_>) -> rusqlite::Result<Result<Track, LibraryError>
             key: row.get(20)?,
             comment: row.get(21)?,
             grouping: row.get(22)?,
+            catalog_number: row.get(25)?,
+            isrc: row.get(26)?,
+            release_date: row.get(27)?,
+            track_number: row.get(28)?,
+            disc_number: row.get(29)?,
         },
         vibes: Vec::new(),
         quality: None::<QualityReport>,
@@ -524,5 +542,22 @@ pub(crate) mod tests {
             lib.forget_track(id),
             Err(LibraryError::NotFound { .. })
         ));
+    }
+
+    #[test]
+    fn stores_release_details() {
+        let mut lib = Library::open_in_memory().expect("open");
+        let mut track = scanned("/m/a.flac");
+        track.tags.catalog_number = Some("HOSP123".into());
+        track.tags.isrc = Some("GBCFB2100001".into());
+        track.tags.release_date = Some("2021-06-04".into());
+        track.tags.track_number = Some("3/12".into());
+        track.tags.disc_number = Some("1/2".into());
+        let (id, _) = lib.upsert_scanned(&track).expect("insert");
+        assert_eq!(lib.track(id).expect("track").tags, track.tags);
+        track.modified_at += 1;
+        track.tags.isrc = None;
+        lib.upsert_scanned(&track).expect("update");
+        assert_eq!(lib.track(id).expect("track").tags, track.tags);
     }
 }
