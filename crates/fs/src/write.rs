@@ -87,6 +87,43 @@ pub fn edit_via_copy(
     Ok(())
 }
 
+/// Creates a new file at `path` from whatever `fill` writes to a temporary
+/// sibling path (given to `fill` as a path, so another program such as
+/// ffmpeg can write it). The temporary file is flushed and then moved into
+/// place only if nothing exists at `path` yet: an existing file is never
+/// replaced, and a failed `fill` leaves nothing behind.
+pub fn create_new_via_temp(
+    roots: &ProtectedRoots,
+    path: &Path,
+    fill: impl FnOnce(&Path) -> Result<(), FsError>,
+) -> Result<(), FsError> {
+    roots.check(path)?;
+    let dir = parent_dir(path);
+    let temp = tempfile::Builder::new()
+        .prefix(".overtone-")
+        .suffix(".tmp")
+        .tempfile_in(dir)
+        .map_err(|source| FsError::io(dir, source))?
+        .into_temp_path();
+    fill(&temp)?;
+    // Temporary files are created private (0600); a new file should get
+    // the usual permissions, so other apps and users can read it.
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&temp, std::fs::Permissions::from_mode(0o644))
+            .map_err(|source| FsError::io(&*temp, source))?;
+    }
+    File::open(&temp)
+        .and_then(|file| file.sync_all())
+        .map_err(|source| FsError::io(&*temp, source))?;
+    // `persist_noclobber` uses a hard link plus unlink, so it fails rather
+    // than replacing a file that appeared meanwhile.
+    temp.persist_noclobber(path)
+        .map_err(|err| FsError::io(path, err.error))?;
+    sync_dir(dir);
+    Ok(())
+}
+
 /// Copies `source` into a new timestamped folder under `backups_dir` and
 /// returns the backup's path. Uses an APFS clone when possible, so backups
 /// of large files are instant and take no extra space until either copy
@@ -336,5 +373,34 @@ mod tests {
         assert_eq!(timestamp_folder_name(time), "2026-11-26_00-00-00.123");
         let leap = UNIX_EPOCH + Duration::from_hours(264_384);
         assert_eq!(timestamp_folder_name(leap), "2000-02-29_00-00-00.000");
+    }
+}
+
+#[cfg(test)]
+mod create_new_tests {
+    use super::*;
+
+    #[test]
+    fn creates_once_and_never_replaces() {
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let path = dir.path().join("out.m4a");
+        create_new_via_temp(&ProtectedRoots::none(), &path, |temp| {
+            std::fs::write(temp, b"first").map_err(|e| FsError::io(temp, e))
+        })
+        .expect("create");
+        assert!(
+            create_new_via_temp(&ProtectedRoots::none(), &path, |temp| {
+                std::fs::write(temp, b"second").map_err(|e| FsError::io(temp, e))
+            })
+            .is_err()
+        );
+        assert_eq!(std::fs::read(&path).expect("read"), b"first");
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(&path).expect("stat").permissions().mode();
+            assert_eq!(mode & 0o777, 0o644);
+        }
+        let leftovers = std::fs::read_dir(dir.path()).expect("list").count();
+        assert_eq!(leftovers, 1, "no temporary files left behind");
     }
 }

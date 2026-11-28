@@ -52,6 +52,12 @@ Use a scratch library (`OVERTONE_LIBRARY=/tmp/lookup.sqlite`) over a few clones 
 - [ ] A wrong key or token reports that the provider refused it and the run carries on with the others.
 - [ ] Accept and reject a few suggestions; `ot meta show` shows accepted values as "lookup: <provider>", and rejected ones don't come back on the next lookup.
 
+## Export copies
+
+- [ ] `ot export --vibe <vibe> --to /Volumes/<USB>` (the default `cdj` format): the AIFF copies play on a CDJ, including an older one without FLAC support, with title, artist, and artwork showing.
+- [ ] `ot export <tracks> --to /tmp/phone --format aac`: the copies play in Apple Music on a phone with tags and artwork.
+- [ ] Listen to a 24-bit/96 kHz track exported with `--format cdj` against the original: no audible difference beyond the lower resolution, no clicks or pitch change.
+
 ## Tag writing (Comment hashtags)
 
 Do this on clones, never originals: `cp -c -R local/music /tmp/tag-test`, then `ot scan /tmp/tag-test`, add vibes with `ot vibe add <vibe> <tracks…>`, preview with `ot tag mirror`, and write with `ot tag mirror --write`. Include at least one ID3v2.3 MP3, one ID3v2.4 MP3, a FLAC, a WAV, and an AIFF, each previously analyzed in the DJ app (so it carries cues and beatgrids).

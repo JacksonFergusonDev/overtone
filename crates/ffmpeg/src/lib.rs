@@ -104,6 +104,16 @@ impl Ffmpeg {
         self.lists_codec("-decoders", name)
     }
 
+    /// Whether this build includes the SoX resampler (`--enable-libsoxr`).
+    pub fn has_soxr(&self) -> Result<bool, FfmpegError> {
+        let output = self
+            .command()
+            .arg("-buildconf")
+            .output()
+            .map_err(|source| self.spawn_error(source))?;
+        Ok(String::from_utf8_lossy(&output.stdout).contains("--enable-libsoxr"))
+    }
+
     fn lists_codec(&self, flag: &str, name: &str) -> Result<bool, FfmpegError> {
         let output = self
             .command()

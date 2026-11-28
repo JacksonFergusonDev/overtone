@@ -14,5 +14,6 @@ mod write;
 pub use error::FsError;
 pub use protect::{PROTECTED_ROOTS_ENV, ProtectedRoots};
 pub use write::{
-    backup_file, backup_files, edit_via_copy, replace_guarded, write_atomic, write_atomic_guarded,
+    backup_file, backup_files, create_new_via_temp, edit_via_copy, replace_guarded, write_atomic,
+    write_atomic_guarded,
 };

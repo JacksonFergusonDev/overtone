@@ -14,7 +14,7 @@ The order matters. Provenance comes before any lookup so fetched values never mi
 | 4 | ffmpeg fallback decoder and integrity check in the audit | 3 | Done Nov 27: analyzer version 2, `audit --integrity`, `ls --damaged`; desktop UI pending |
 | 5 | Metadata lookup (MusicBrainz, Discogs, then AcoustID) | 2, and 4 for AcoustID | Done Nov 27: `overtone-metadata`, `meta lookup` and `meta config` ([decision](../decisions/metadata-lookup.md)); desktop UI and writing values to files pending |
 | 6 | Loudness, true peak, and leading-silence reports | 4 optional | Done Nov 27: in the analysis pass (analyzer version 2), shown by `show`; [costs](../decisions/audio-quality-analysis.md#loudness-peaks-and-leading-silence-phase-6-step-6) |
-| 7 | Export copies (downsampled and lossy) | 3 | Not started |
+| 7 | Export copies (downsampled and lossy) | 3 | Done Nov 27: `overtone-cli export` ([docs](../../docs/export.md)); desktop UI pending |
 | 8a | Lossless conversion: audio, verification, tags, Serato tags | 1, 3 | Not started |
 | 8b | Conversion relocation in DJ apps, one app at a time | 8a, the manual verification pass | Not started |
 

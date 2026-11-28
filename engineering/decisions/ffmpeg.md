@@ -38,6 +38,10 @@ MacBook Air M3, ffmpeg 9.1 (Homebrew), `cargo run --release -p overtone-audio --
 - **Lossy decodes differ in length, not content.** All 15 M4A files and one MP3 have different sample counts because the two decoders trim encoder delay and padding differently; where lengths match, samples agree within 5.4e-6. Checks on lossy output must allow for this.
 - **Speed is close enough to not matter.** ffmpeg is faster on FLAC and slower on PCM and MP3, mostly from the pipe and process start. Analysis keeps Symphonia, so this only affects the fallback and conversion paths.
 
+## Export copies (Phase 6 step 7)
+
+`overtone_core::export` builds the ffmpeg arguments per format: `aac_at` (else ffmpeg's `aac`) at 256 kbps in an `ipod` (`.m4a`) container, `libmp3lame` at 320 kbps CBR with ID3v2.3 tags, FLAC at compression level 8, AIFF with ID3v2.3 tags, and WAV. Resampling uses soxr at 28-bit precision when the build has it (Homebrew's 9.1 doesn't) and otherwise swresample with a 64-tap filter; reducing bit depth adds `triangular_hp` dither. ffmpeg writes to a temporary file in the target folder, Symphonia decodes it to check format, sample rate, and length (within 50 ms for lossless, 500 ms for lossy, which pads or trims encoder delay), and `overtone_fs::create_new_via_temp` moves it into place only if the name is still free. Tags are the source's plus Overtone's current values, so the DJ's own values win.
+
 ## How `overtone-ffmpeg` finds ffmpeg
 
 1. `OVERTONE_FFMPEG`, if set.
