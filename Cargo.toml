@@ -96,4 +96,5 @@ overtone-sync-traktor = { path = "crates/sync-traktor" }
 overtone-core = { path = "crates/core" }
 overtone-model = { path = "crates/model" }
 overtone-fs = { path = "crates/fs" }
+overtone-ffmpeg = { path = "crates/ffmpeg" }
 overtone-testkit = { path = "crates/testkit" }

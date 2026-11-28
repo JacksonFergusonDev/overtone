@@ -10,7 +10,7 @@ The order matters. Provenance comes before any lookup so fetched values never mi
 |---|---|---|---|
 | 1 | Surgical ID3v2 COMM patcher | nothing | Done Nov 27: byte-level splicer for ID3v2 and FLAC, 1,067 of 1,082 files writable |
 | 2 | Per-field metadata provenance | nothing | Done Nov 27: schema 3, library API, `overtone-cli meta`; desktop UI and writing values to files come with step 5 |
-| 3 | ffmpeg foundation (decision, build, wrapper crate) | nothing | Not started |
+| 3 | ffmpeg foundation (decision, build, wrapper crate) | nothing | Done Nov 27: `overtone-ffmpeg` and [decision](../decisions/ffmpeg.md); building the bundled binary moves to release packaging |
 | 4 | ffmpeg fallback decoder and integrity check in the audit | 3 | Not started |
 | 5 | Metadata lookup (MusicBrainz, Discogs, then AcoustID) | 2, and 4 for AcoustID | Not started |
 | 6 | Loudness, true peak, and leading-silence reports | 4 optional | Not started |
@@ -119,4 +119,4 @@ No open-source tool converts formats while keeping DJ data across Serato, Rekord
 ## Open questions
 
 - Which DJ app step 8b supports first.
-- Whether ffmpeg is bundled with the CLI or the CLI uses a system ffmpeg (decide in step 3).
+- How the CLI gets ffmpeg when installed through Homebrew (a formula dependency on `ffmpeg` is the likely answer). The lookup order already covers a system ffmpeg.

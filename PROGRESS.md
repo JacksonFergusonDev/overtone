@@ -16,6 +16,7 @@ The maintainer handoff: where things stand, what's open, and what's next. Update
 - **Traktor:** byte-preserving splice of an `Overtone` folder into `collection.nml` ([design](engineering/decisions/dj-software-sync.md#traktor-splice-the-overtone-playlist-folder-into-collectionnml)), tested on synthetic TP3 and TP4 fixtures; there is no Traktor install or real collection here.
 - **Desktop app:** 30 Tauri commands over core ([desktop UI plan](engineering/plans/desktop-ui.md)) with progress channels, a runtime asset scope for library folders, and a spectrogram cache. The React UI ([frontend stack](engineering/decisions/architecture-and-ui.md#frontend-stack)) has a virtualized library table, a player with a canvas waveform, a quick-tag palette, a spectrogram inspector with review actions, a needs-review flow, a Sync view for every sync target, and Settings for folders, scans, and audits. `pnpm --dir app dev` runs it in a browser against a seeded mock backend. An IPC test runs commands through Tauri's real ACL on the mock runtime.
 - **Metadata provenance:** every field has a source (file, user, or accepted lookup) and lookups arrive only as pending suggestions ([Phase 6 plan, step 2](engineering/plans/metadata-and-conversion.md#step-2-per-field-metadata-provenance)). CLI only so far; overrides are not yet written to files or exports.
+- **ffmpeg:** `overtone-ffmpeg` runs ffmpeg as a child process (locate, PCM decode over a pipe, integrity checks, encode jobs with progress and cancel); lossless decodes match Symphonia bit for bit ([decision](engineering/decisions/ffmpeg.md)). Development uses Homebrew's ffmpeg; the bundled build is not made yet.
 - **CLI:** `status`, `roots`, `scan`, `ls`, `show`, `vibe`, `meta`, `audit`, `review`, `spectrogram`, `tag mirror|restore`, and `sync serato|rekordbox|rekordbox-tags|traktor`, all with `--json`.
 
 ## Unresolved
@@ -34,13 +35,12 @@ How the work runs: before each feature, a research subagent surveys crates; cont
 
 Phase 6 is the current work. Follow the [Phase 6 plan](engineering/plans/metadata-and-conversion.md) in order and mark each step done there and here as it lands. Its key rules: provenance (step 2) lands before any lookup (step 5) so fetched values never mix with the DJ's own; OneTagger is a source of ported ideas and code, not a dependency; ffmpeg runs as a bundled child process and Symphonia verifies its output.
 
-1. Step 3: ffmpeg foundation (spike against `rsmpeg`/`ffmpeg-next`, audio-only static build, `overtone-ffmpeg` wrapper crate, decision doc).
-2. Step 4: ffmpeg fallback decoder and integrity check in the audit.
-3. Step 5: metadata lookup (MusicBrainz, Discogs, then AcoustID).
-4. Step 6: loudness, true peak, and leading-silence reports.
-5. Step 7: export copies (downsampled and lossy).
-6. Step 8a: lossless WAV/AIFF to FLAC conversion with sample-level verification, tags, and Serato tag translation.
-7. The manual verification pass ([checklist](engineering/manual-verification.md)), on throwaway DJ libraries, then fix what it turns up. It must happen before step 8b.
-8. Step 8b: conversion relocation in DJ apps, one app at a time. Which app goes first is undecided.
-9. Desktop polish: continuous playback, a target picker for Serato, Comment mirroring, and Traktor collections, and Traktor `INFO/@COMMENT` hashtag mirroring (noted in [vibe tags](engineering/decisions/vibe-tags.md)).
-10. Release packaging: signing, notarization (including the bundled ffmpeg binary), and Homebrew/GitHub release automation.
+1. Step 4: ffmpeg fallback decoder and integrity check in the audit.
+2. Step 5: metadata lookup (MusicBrainz, Discogs, then AcoustID).
+3. Step 6: loudness, true peak, and leading-silence reports.
+4. Step 7: export copies (downsampled and lossy).
+5. Step 8a: lossless WAV/AIFF to FLAC conversion with sample-level verification, tags, and Serato tag translation.
+6. The manual verification pass ([checklist](engineering/manual-verification.md)), on throwaway DJ libraries, then fix what it turns up. It must happen before step 8b.
+7. Step 8b: conversion relocation in DJ apps, one app at a time. Which app goes first is undecided.
+8. Desktop polish: continuous playback, a target picker for Serato, Comment mirroring, and Traktor collections, and Traktor `INFO/@COMMENT` hashtag mirroring (noted in [vibe tags](engineering/decisions/vibe-tags.md)).
+9. Release packaging: signing, notarization, building and bundling the audio-only ffmpeg sidecar ([configuration](engineering/decisions/ffmpeg.md#the-bundled-build-for-release-packaging)), and Homebrew/GitHub release automation.

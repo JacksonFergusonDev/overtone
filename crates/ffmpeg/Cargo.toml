@@ -1,0 +1,17 @@
+[package]
+name = "overtone-ffmpeg"
+description = "Runs a bundled or system ffmpeg as a child process: locating it, decoding to PCM, integrity checks, and encoding jobs"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+
+[dev-dependencies]
+overtone-testkit.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true

@@ -10,6 +10,7 @@ license.workspace = true
 blake3.workspace = true
 lofty.workspace = true
 colorous.workspace = true
+overtone-ffmpeg.workspace = true
 overtone-fs.workspace = true
 overtone-model.workspace = true
 png.workspace = true

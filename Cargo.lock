@@ -2761,6 +2761,7 @@ dependencies = [
  "blake3",
  "colorous",
  "lofty",
+ "overtone-ffmpeg",
  "overtone-fs",
  "overtone-model",
  "overtone-testkit",
@@ -2811,6 +2812,15 @@ dependencies = [
  "thiserror 2.0.21",
  "ts-rs",
  "walkdir",
+]
+
+[[package]]
+name = "overtone-ffmpeg"
+version = "0.1.0"
+dependencies = [
+ "overtone-testkit",
+ "tempfile",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
